@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.serviclick.presentation.auth.LoginScreen
 import com.serviclick.ui.theme.ServiClickTheme
 
 class MainActivity : ComponentActivity() {
@@ -46,7 +47,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun PreviewComponents(){
         ServiClickTheme() {
-            MiBotonPersonalizado()
+            LoginScreen()
         }
 
     }
