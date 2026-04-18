@@ -4,7 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface // IMPORTANTE
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -20,7 +24,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ServiClickTheme {
-                ServiClickApp()
+                // EL ARREGLO ESTÁ AQUÍ: Añadimos el Surface (El lienzo)
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background // Aplica el fondo del Tema
+                ) {
+                    ServiClickApp()
+                }
             }
         }
     }
@@ -28,15 +38,12 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ServiClickApp() {
-    // El navController es el que ejecuta las órdenes de navegar
     val navController = rememberNavController()
 
-    // NavHost define el mapa: pantalla inicial y destinos posibles
     NavHost(
         navController = navController,
         startDestination = LoginDestination
     ) {
-        // Destino 1: Login
         composable<LoginDestination> {
             LoginScreen(
                 onNavigateToRegister = {
@@ -44,8 +51,6 @@ fun ServiClickApp() {
                 }
             )
         }
-
-        // Destino 2: Registro
         composable<RegisterDestination> {
             RegisterScreen(
                 onNavigateBack = {
