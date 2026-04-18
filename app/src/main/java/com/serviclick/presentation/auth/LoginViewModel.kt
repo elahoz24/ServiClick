@@ -1,5 +1,6 @@
 package com.serviclick.presentation.auth
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,10 +27,18 @@ class LoginViewModel : ViewModel() {
     }
 
     fun onLoginSelected() {
-        // En el futuro, aquí llamaremos a Firebase Auth
+        // En el futuro, aquí llamaremos a Firebase Auth para iniciar sesión
     }
 
     // 3. REGLAS DE NEGOCIO (Validaciones)
-    private fun isValidEmail(email: String): Boolean = email.contains("@") && email.contains(".")
-    private fun isValidPassword(password: String): Boolean = password.length >= 6
+
+    // Validación robusta usando la herramienta nativa de Android
+    private fun isValidEmail(email: String): Boolean {
+        return Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    }
+
+    // Validación de contraseña (mínimo 6 caracteres suele ser el estándar de Firebase)
+    private fun isValidPassword(password: String): Boolean {
+        return password.length >= 6
+    }
 }

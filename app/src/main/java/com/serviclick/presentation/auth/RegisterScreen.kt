@@ -12,25 +12,26 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun LoginScreen(
-    viewModel: LoginViewModel = viewModel(),
-    onNavigateToRegister: () -> Unit // <-- El "cable" para ir al registro
+fun RegisterScreen(
+    viewModel: RegisterViewModel = viewModel(),
+    onNavigateBack: () -> Unit // <-- El "cable" para volver atrás
 ) {
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
-    val isLoginEnabled by viewModel.isLoginEnabled.collectAsState()
+    val confirmPassword by viewModel.confirmPassword.collectAsState()
+    val isRegisterEnabled by viewModel.isRegisterEnabled.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "ServiClick", style = MaterialTheme.typography.headlineLarge)
+        Text(text = "Crear Cuenta", style = MaterialTheme.typography.headlineLarge)
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedTextField(
             value = email,
-            onValueChange = { viewModel.onLoginChanged(it, password) },
+            onValueChange = { viewModel.onRegisterChanged(it, password, confirmPassword) },
             label = { Text("Correo electrónico") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -39,8 +40,18 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = password,
-            onValueChange = { viewModel.onLoginChanged(email, it) },
+            onValueChange = { viewModel.onRegisterChanged(email, it, confirmPassword) },
             label = { Text("Contraseña") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = confirmPassword,
+            onValueChange = { viewModel.onRegisterChanged(email, password, it) },
+            label = { Text("Repetir Contraseña") },
             modifier = Modifier.fillMaxWidth(),
             visualTransformation = PasswordVisualTransformation()
         )
@@ -48,18 +59,18 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { viewModel.onLoginSelected() },
+            onClick = { viewModel.onRegisterSelected() },
             modifier = Modifier.fillMaxWidth(),
-            enabled = isLoginEnabled
+            enabled = isRegisterEnabled
         ) {
-            Text("Iniciar Sesión")
+            Text("Registrarse")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // CONEXIÓN DEL BOTÓN:
-        TextButton(onClick = { onNavigateToRegister() }) {
-            Text("¿No tienes cuenta? Regístrate aquí")
+        TextButton(onClick = { onNavigateBack() }) {
+            Text("¿Ya tienes cuenta? Inicia sesión")
         }
     }
 }

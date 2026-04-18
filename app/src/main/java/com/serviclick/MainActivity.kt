@@ -4,17 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.serviclick.core.navigation.LoginDestination
+import com.serviclick.core.navigation.RegisterDestination
 import com.serviclick.presentation.auth.LoginScreen
+import com.serviclick.presentation.auth.RegisterScreen
 import com.serviclick.ui.theme.ServiClickTheme
 
 class MainActivity : ComponentActivity() {
@@ -22,34 +19,39 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            // Este es el punto de entrada de Jetpack Compose
             ServiClickTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(text = "¡Hola Compose y Firebase!")
-                    }
-                }
+                ServiClickApp()
             }
         }
     }
-
-    @Composable
-    fun MiBotonPersonalizado() {
-        Button(onClick = { /* Hacer algo */ }) {
-            Text("Púlsame")
-        }
-    }
-
-    @Preview(showSystemUi = true)
-    @Composable
-    fun PreviewComponents(){
-        ServiClickTheme() {
-            LoginScreen()
-        }
-
-    }
 }
 
+@Composable
+fun ServiClickApp() {
+    // El navController es el que ejecuta las órdenes de navegar
+    val navController = rememberNavController()
+
+    // NavHost define el mapa: pantalla inicial y destinos posibles
+    NavHost(
+        navController = navController,
+        startDestination = LoginDestination
+    ) {
+        // Destino 1: Login
+        composable<LoginDestination> {
+            LoginScreen(
+                onNavigateToRegister = {
+                    navController.navigate(RegisterDestination)
+                }
+            )
+        }
+
+        // Destino 2: Registro
+        composable<RegisterDestination> {
+            RegisterScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+    }
+}
