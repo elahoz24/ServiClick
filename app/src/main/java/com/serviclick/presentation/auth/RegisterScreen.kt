@@ -31,62 +31,126 @@ fun RegisterScreen(
     val role by viewModel.role.collectAsState()
     val isRegisterEnabled by viewModel.isRegisterEnabled.collectAsState()
 
+    // Usamos EXACTAMENTE los mismos colores de TextField que en el Login
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = MintVibrant,
         unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
         focusedTextColor = Color.White,
         unfocusedTextColor = Color.White,
         focusedLabelColor = MintVibrant,
-        unfocusedLabelColor = Color.White.copy(alpha = 0.7f)
+        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+        cursorColor = MintVibrant
     )
 
     Column(
-        modifier = Modifier.fillMaxSize().background(MidnightBlue).padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MidnightBlue)
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        // Logo con el mismo tamaño que el Login (150.dp)
         Image(
             painter = painterResource(id = R.drawable.logo),
-            contentDescription = "Logo",
-            modifier = Modifier.size(100.dp)
+            contentDescription = "ServiClick Logo",
+            modifier = Modifier.size(150.dp)
+        )
+
+        // Mismo espaciado tras el logo (48.dp)
+        Spacer(modifier = Modifier.height(48.dp))
+
+        // Campos de texto con espaciado consistente (16.dp)
+        OutlinedTextField(
+            value = email,
+            onValueChange = { viewModel.onRegisterChanged(it, password, confirmPassword, role) },
+            label = { Text("Correo electrónico") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = textFieldColors,
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = { viewModel.onRegisterChanged(email, it, confirmPassword, role) },
+            label = { Text("Contraseña") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+            colors = textFieldColors,
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = confirmPassword,
+            onValueChange = { viewModel.onRegisterChanged(email, password, it, role) },
+            label = { Text("Repetir Contraseña") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+            colors = textFieldColors,
+            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text("Crea tu cuenta", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
+        // Selector de Rol integrado en el diseño
+        Text(
+            text = "¿Qué perfil buscas?",
+            color = Color.White,
+            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.bodyMedium
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        OutlinedTextField(value = email, onValueChange = { viewModel.onRegisterChanged(it, password, confirmPassword, role) }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth(), colors = textFieldColors)
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(value = password, onValueChange = { viewModel.onRegisterChanged(email, it, confirmPassword, role) }, label = { Text("Contraseña") }, modifier = Modifier.fillMaxWidth(), visualTransformation = PasswordVisualTransformation(), colors = textFieldColors)
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(value = confirmPassword, onValueChange = { viewModel.onRegisterChanged(email, password, it, role) }, label = { Text("Repetir contraseña") }, modifier = Modifier.fillMaxWidth(), visualTransformation = PasswordVisualTransformation(), colors = textFieldColors)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text("¿Qué perfil buscas?", color = Color.White, fontWeight = FontWeight.SemiBold)
-        Row(Modifier.selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected = role == "cliente", onClick = { viewModel.onRoleChanged("cliente") }, colors = RadioButtonDefaults.colors(selectedColor = MintVibrant, unselectedColor = Color.White))
+        Row(
+            modifier = Modifier.selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = role == "cliente",
+                onClick = { viewModel.onRoleChanged("cliente") },
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MintVibrant,
+                    unselectedColor = Color.White.copy(alpha = 0.6f)
+                )
+            )
             Text("Cliente", color = Color.White)
-            Spacer(Modifier.width(20.dp))
-            RadioButton(selected = role == "empresa", onClick = { viewModel.onRoleChanged("empresa") }, colors = RadioButtonDefaults.colors(selectedColor = MintVibrant, unselectedColor = Color.White))
+
+            Spacer(modifier = Modifier.width(20.dp))
+
+            RadioButton(
+                selected = role == "empresa",
+                onClick = { viewModel.onRoleChanged("empresa") },
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = MintVibrant,
+                    unselectedColor = Color.White.copy(alpha = 0.6f)
+                )
+            )
             Text("Empresa", color = Color.White)
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        // Mismo espaciado antes del botón (40.dp aprox)
+        Spacer(modifier = Modifier.height(40.dp))
 
+        // Botón con el mismo estilo "ExtraBold" y altura (54.dp) que el Login
         Button(
             onClick = { viewModel.onRegisterSelected() },
             modifier = Modifier.fillMaxWidth().height(54.dp),
             enabled = isRegisterEnabled,
-            colors = ButtonDefaults.buttonColors(containerColor = MintVibrant)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MintVibrant,
+                disabledContainerColor = MintVibrant.copy(alpha = 0.3f)
+            )
         ) {
-            Text("REGISTRARME", fontWeight = FontWeight.Bold, color = MidnightBlue)
+            Text("REGISTRARME", fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+
         TextButton(onClick = { onNavigateBack() }) {
-            Text("Ya tengo cuenta", color = MintVibrant)
+            Text("¿Ya tienes cuenta? Inicia sesión", color = MintVibrant)
         }
     }
 }
