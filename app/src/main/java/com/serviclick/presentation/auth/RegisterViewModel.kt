@@ -3,6 +3,10 @@ package com.serviclick.presentation.auth
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class RegisterViewModel : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance() // INSTANCIA DE FIRESTORE
+    private val db = FirebaseFirestore.getInstance()
 
     private val _email = MutableStateFlow("")
     val email: StateFlow<String> = _email.asStateFlow()
@@ -53,18 +57,17 @@ class RegisterViewModel : ViewModel() {
         _isLoading.value = true
         _errorMessage.value = null
 
-        // PASO 1: Crear el usuario en Authentication
         auth.createUserWithEmailAndPassword(_email.value, _password.value)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val userId = auth.currentUser?.uid
                     if (userId != null) {
-                        // PASO 2: Si hay éxito, guardamos el ROL en Firestore
                         saveUserToFirestore(userId)
                     }
                 } else {
                     _isLoading.value = false
-                    _errorMessage.value = task.exception?.message ?: "Error en el registro"
+                    // AQUÍ USAMOS NUESTRO TRADUCTOR
+                    _errorMessage.value = getTranslatedErrorMessage(task.exception)
                 }
             }
     }
@@ -80,14 +83,25 @@ class RegisterViewModel : ViewModel() {
             .set(userMap)
             .addOnSuccessListener {
                 _isLoading.value = false
-                _registerSuccess.value = true // Esto disparará la navegación en la vista
+                _registerSuccess.value = true
             }
-            .addOnFailureListener { e ->
+            .addOnFailureListener {
                 _isLoading.value = false
-                _errorMessage.value = "Cuenta creada, pero hubo un error al guardar el perfil."
+                _errorMessage.value = "Cuenta creada, pero hubo un error de conexión al guardar tu perfil."
             }
     }
 
     private fun isValidEmail(email: String): Boolean = Patterns.EMAIL_ADDRESS.matcher(email).matches()
     private fun isValidPassword(password: String): Boolean = password.length >= 6
+
+    // --- TRADUCTOR DE ERRORES AL ESPAÑOL ---
+    private fun getTranslatedErrorMessage(exception: Exception?): String {
+        return when (exception) {
+            is FirebaseAuthUserCollisionException -> "Ya existe una cuenta con este correo electrónico."
+            is FirebaseAuthWeakPasswordException -> "La contraseña es demasiado débil (mínimo 6 caracteres)."
+            is FirebaseAuthInvalidCredentialsException -> "El formato del correo electrónico no es válido."
+            is FirebaseNetworkException -> "No hay conexión a internet. Revisa tu red."
+            else -> "Se ha producido un error inesperado al registrarte."
+        }
+    }
 }

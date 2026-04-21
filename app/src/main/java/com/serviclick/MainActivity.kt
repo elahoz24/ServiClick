@@ -6,16 +6,19 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface // IMPORTANTE
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.google.firebase.auth.FirebaseAuth
+import com.serviclick.core.navigation.HomeDestination
 import com.serviclick.core.navigation.LoginDestination
 import com.serviclick.core.navigation.RegisterDestination
 import com.serviclick.presentation.auth.LoginScreen
 import com.serviclick.presentation.auth.RegisterScreen
+import com.serviclick.presentation.home.HomeScreen
 import com.serviclick.ui.theme.ServiClickTheme
 
 class MainActivity : ComponentActivity() {
@@ -24,10 +27,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ServiClickTheme {
-                // EL ARREGLO ESTÁ AQUÍ: Añadimos el Surface (El lienzo)
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background // Aplica el fondo del Tema
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     ServiClickApp()
                 }
@@ -40,14 +42,27 @@ class MainActivity : ComponentActivity() {
 fun ServiClickApp() {
     val navController = rememberNavController()
 
+    // LA MAGIA DEL AUTO-LOGIN: ¿Hay un usuario guardado?
+    val startingScreen: Any = if (FirebaseAuth.getInstance().currentUser != null) {
+        HomeDestination
+    } else {
+        LoginDestination
+    }
+
     NavHost(
         navController = navController,
-        startDestination = LoginDestination
+        startDestination = startingScreen
     ) {
         composable<LoginDestination> {
             LoginScreen(
                 onNavigateToRegister = {
                     navController.navigate(RegisterDestination)
+                },
+                onNavigateToHome = {
+                    // Navegamos al Home y destruimos el Login para que no pueda volver atrás
+                    navController.navigate(HomeDestination) {
+                        popUpTo(LoginDestination) { inclusive = true }
+                    }
                 }
             )
         }
@@ -55,6 +70,16 @@ fun ServiClickApp() {
             RegisterScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+        composable<HomeDestination> {
+            HomeScreen(
+                onLogout = {
+                    // Navegamos al Login y destruimos el Home
+                    navController.navigate(LoginDestination) {
+                        popUpTo(HomeDestination) { inclusive = true }
+                    }
                 }
             )
         }

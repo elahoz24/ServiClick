@@ -2,13 +2,18 @@ package com.serviclick.presentation.auth
 
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.FirebaseNetworkException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 class LoginViewModel : ViewModel() {
 
-    // 1. ESTADOS (Privados para que la Vista no pueda modificarlos directamente)
+    private val auth = FirebaseAuth.getInstance()
+
     private val _email = MutableStateFlow("")
     val email: StateFlow<String> = _email.asStateFlow()
 
@@ -18,27 +23,77 @@ class LoginViewModel : ViewModel() {
     private val _isLoginEnabled = MutableStateFlow(false)
     val isLoginEnabled: StateFlow<Boolean> = _isLoginEnabled.asStateFlow()
 
-    // 2. EVENTOS (Lo que el usuario hace en la pantalla)
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
+    // NUEVO: Estado para el mensaje de éxito al resetear la contraseña
+    private val _resetMessage = MutableStateFlow<String?>(null)
+    val resetMessage: StateFlow<String?> = _resetMessage.asStateFlow()
+
+    private val _loginSuccess = MutableStateFlow(false)
+    val loginSuccess: StateFlow<Boolean> = _loginSuccess.asStateFlow()
+
     fun onLoginChanged(email: String, pass: String) {
         _email.value = email
         _password.value = pass
-        // El botón solo se habilitará si ambas reglas se cumplen
         _isLoginEnabled.value = isValidEmail(email) && isValidPassword(pass)
     }
 
     fun onLoginSelected() {
-        // En el futuro, aquí llamaremos a Firebase Auth para iniciar sesión
+        _isLoading.value = true
+        _errorMessage.value = null
+        _resetMessage.value = null
+
+        auth.signInWithEmailAndPassword(_email.value, _password.value)
+            .addOnCompleteListener { task ->
+                _isLoading.value = false
+                if (task.isSuccessful) {
+                    _loginSuccess.value = true
+                } else {
+                    _errorMessage.value = getTranslatedErrorMessage(task.exception)
+                }
+            }
     }
 
-    // 3. REGLAS DE NEGOCIO (Validaciones)
+    // --- NUEVO: FUNCIÓN PARA RECUPERAR CONTRASEÑA ---
+    fun onResetPassword(emailToReset: String) {
+        if (!isValidEmail(emailToReset)) {
+            _errorMessage.value = "Por favor, introduce un correo electrónico válido."
+            return
+        }
 
-    // Validación robusta usando la herramienta nativa de Android
-    private fun isValidEmail(email: String): Boolean {
-        return Patterns.EMAIL_ADDRESS.matcher(email).matches()
+        _isLoading.value = true
+        _errorMessage.value = null
+        _resetMessage.value = null
+
+        auth.sendPasswordResetEmail(emailToReset.trim())
+            .addOnCompleteListener { task ->
+                _isLoading.value = false
+                if (task.isSuccessful) {
+                    _resetMessage.value = "Se ha enviado un enlace a tu correo. Revisa también la carpeta de Spam."
+                } else {
+                    _errorMessage.value = getTranslatedErrorMessage(task.exception)
+                }
+            }
     }
 
-    // Validación de contraseña (mínimo 6 caracteres suele ser el estándar de Firebase)
-    private fun isValidPassword(password: String): Boolean {
-        return password.length >= 6
+    fun clearMessages() {
+        _errorMessage.value = null
+        _resetMessage.value = null
+    }
+
+    private fun isValidEmail(email: String): Boolean = Patterns.EMAIL_ADDRESS.matcher(email).matches()
+    private fun isValidPassword(password: String): Boolean = password.length >= 6
+
+    private fun getTranslatedErrorMessage(exception: Exception?): String {
+        return when (exception) {
+            is FirebaseAuthInvalidUserException -> "No existe ninguna cuenta registrada con este correo."
+            is FirebaseAuthInvalidCredentialsException -> "El correo o la contraseña son incorrectos."
+            is FirebaseNetworkException -> "No hay conexión a internet. Revisa tu red."
+            else -> "Se ha producido un error inesperado. Inténtalo de nuevo."
+        }
     }
 }
