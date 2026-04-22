@@ -25,7 +25,8 @@ import com.serviclick.ui.theme.MintVibrant
 @Composable
 fun RegisterScreen(
     viewModel: RegisterViewModel = viewModel(),
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToHome: () -> Unit
 ) {
     val email by viewModel.email.collectAsState()
     val password by viewModel.password.collectAsState()
@@ -41,7 +42,7 @@ fun RegisterScreen(
     // Efecto para navegar automáticamente cuando el registro sea un éxito
     LaunchedEffect(registerSuccess) {
         if (registerSuccess) {
-            onNavigateBack()
+            onNavigateToHome()
         }
     }
 

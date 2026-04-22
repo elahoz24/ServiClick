@@ -1,15 +1,22 @@
 package com.serviclick.presentation.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -18,41 +25,121 @@ import com.serviclick.ui.theme.MidnightBlue
 import com.serviclick.ui.theme.MintVibrant
 
 @Composable
-fun HomeScreen(
-    viewModel: HomeViewModel = viewModel(),
-    onLogout: () -> Unit
-) {
+fun HomeScreen(viewModel: HomeViewModel = viewModel(), onLogout: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MidnightBlue),
-        contentAlignment = Alignment.Center
-    ) {
+    if (errorMessage != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.clearErrorMessage() },
+            title = { Text("Aviso", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text(errorMessage!!, color = Color.White) },
+            confirmButton = { TextButton(onClick = { viewModel.clearErrorMessage() }) { Text("OK", color = MintVibrant) } },
+            containerColor = MidnightBlue
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(MidnightBlue), contentAlignment = Alignment.Center) {
         when (uiState) {
-            HomeState.LOADING -> {
-                CircularProgressIndicator(color = MintVibrant, modifier = Modifier.size(60.dp))
-            }
-            HomeState.NEEDS_CITY -> {
-                CitySelectionSection(viewModel)
-            }
-            HomeState.NEEDS_COMPANY_INFO -> {
-                CompanySetupSection(viewModel)
-            }
-            HomeState.DASHBOARD -> {
-                DashboardSection(viewModel, onLogout)
-            }
+            HomeState.LOADING -> CircularProgressIndicator(color = MintVibrant, modifier = Modifier.size(60.dp))
+            HomeState.NEEDS_CLIENT_INFO -> ClientSetupSection(viewModel)
+            HomeState.NEEDS_COMPANY_INFO -> CompanySetupSection(viewModel)
+            HomeState.DASHBOARD -> DashboardSection(viewModel, onLogout)
         }
     }
 }
 
-// --- SUB-PANTALLA: CONFIGURACIÓN DE EMPRESA ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun getTextFieldColors() = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+    focusedBorderColor = MintVibrant, unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+    focusedTextColor = Color.White, unfocusedTextColor = Color.White,
+    focusedLabelColor = MintVibrant, unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+    cursorColor = MintVibrant, errorBorderColor = Color(0xFFFF5252)
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PhoneInputField(
+    prefixValue: String, onPrefixChange: (String) -> Unit,
+    phoneValue: String, onPhoneChange: (String) -> Unit,
+    prefixes: List<String>
+) {
+    var expandedPrefix by remember { mutableStateOf(false) }
+
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        ExposedDropdownMenuBox(
+            expanded = expandedPrefix, onExpandedChange = { expandedPrefix = !expandedPrefix },
+            modifier = Modifier.weight(0.35f)
+        ) {
+            OutlinedTextField(
+                value = prefixValue.substringBefore(" "),
+                onValueChange = { }, readOnly = true, label = { Text("Prefijo") },
+                colors = getTextFieldColors(), modifier = Modifier.menuAnchor().fillMaxWidth(), singleLine = true
+            )
+            ExposedDropdownMenu(expanded = expandedPrefix, onDismissRequest = { expandedPrefix = false }, modifier = Modifier.background(Color.White)) {
+                prefixes.forEach { option ->
+                    DropdownMenuItem(text = { Text(option, color = MidnightBlue) }, onClick = { onPrefixChange(option); expandedPrefix = false })
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        OutlinedTextField(
+            value = phoneValue, onValueChange = onPhoneChange,
+            label = { Text("Teléfono") }, modifier = Modifier.weight(0.65f), colors = getTextFieldColors(),
+            singleLine = true, isError = phoneValue.isNotEmpty() && phoneValue.length < 9,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ClientSetupSection(viewModel: HomeViewModel) {
+    val name by viewModel.setupName.collectAsState()
+    val phonePrefix by viewModel.setupPhonePrefix.collectAsState()
+    val phone by viewModel.setupPhone.collectAsState()
+    val selectedCity by viewModel.selectedCity.collectAsState()
+    var expandedCity by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("¡Bienvenido a ServiClick!", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(32.dp))
+
+        OutlinedTextField(
+            value = name, onValueChange = { viewModel.onSetupNameChanged(it) },
+            label = { Text("Nombre Completo") }, modifier = Modifier.fillMaxWidth(), colors = getTextFieldColors(), singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, capitalization = KeyboardCapitalization.Words)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        PhoneInputField(phonePrefix, { viewModel.onSetupPhonePrefixChanged(it) }, phone, { viewModel.onSetupPhoneChanged(it) }, viewModel.phonePrefixes)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        ExposedDropdownMenuBox(expanded = expandedCity, onExpandedChange = { expandedCity = !expandedCity }) {
+            OutlinedTextField(value = selectedCity, onValueChange = { }, readOnly = true, label = { Text("Tu Ciudad") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCity) }, colors = getTextFieldColors(), modifier = Modifier.menuAnchor().fillMaxWidth())
+            ExposedDropdownMenu(expanded = expandedCity, onDismissRequest = { expandedCity = false }, modifier = Modifier.background(Color.White)) {
+                viewModel.provinces.forEach { option -> DropdownMenuItem(text = { Text(option, color = MidnightBlue) }, onClick = { viewModel.onCityChanged(option); expandedCity = false }) }
+            }
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = { viewModel.saveClientProfile() }, modifier = Modifier.fillMaxWidth().height(54.dp),
+            enabled = name.length >= 3 && phone.length >= 9 && selectedCity.isNotEmpty(),
+            colors = ButtonDefaults.buttonColors(containerColor = MintVibrant, disabledContainerColor = MintVibrant.copy(alpha = 0.3f))
+        ) { Text("COMENZAR", fontWeight = FontWeight.ExtraBold, color = MidnightBlue) }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompanySetupSection(viewModel: HomeViewModel) {
-    val companyName by viewModel.companyName.collectAsState()
-    val phone by viewModel.phone.collectAsState()
+    val companyName by viewModel.setupName.collectAsState()
+    val phonePrefix by viewModel.setupPhonePrefix.collectAsState()
+    val phone by viewModel.setupPhone.collectAsState()
     val description by viewModel.description.collectAsState()
     val selectedCity by viewModel.selectedCity.collectAsState()
     val selectedCategory by viewModel.selectedCategory.collectAsState()
@@ -60,268 +147,257 @@ fun CompanySetupSection(viewModel: HomeViewModel) {
     var expandedCity by remember { mutableStateOf(false) }
     var expandedCategory by remember { mutableStateOf(false) }
 
-    val scrollState = rememberScrollState()
-
-    val textFieldColors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-        focusedBorderColor = MintVibrant,
-        unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        focusedLabelColor = MintVibrant,
-        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-        cursorColor = MintVibrant
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Configura tu Negocio",
-            style = MaterialTheme.typography.headlineMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Crea el escaparate perfecto para atraer clientes.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.8f),
-            textAlign = TextAlign.Center
-        )
-
+        Text("Configura tu Negocio", style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedTextField(
-            value = companyName,
-            onValueChange = { viewModel.onCompanyNameChanged(it) },
-            label = { Text("Nombre de la Empresa / Profesional") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = textFieldColors,
-            singleLine = true
+            value = companyName, onValueChange = { viewModel.onSetupCompanyNameChanged(it) },
+            label = { Text("Nombre de la Empresa") }, modifier = Modifier.fillMaxWidth(), colors = getTextFieldColors(), singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, capitalization = KeyboardCapitalization.Words)
         )
         Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = phone,
-            onValueChange = { viewModel.onPhoneChanged(it) },
-            label = { Text("Teléfono de Contacto") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = textFieldColors,
-            singleLine = true
-        )
+        PhoneInputField(phonePrefix, { viewModel.onSetupPhonePrefixChanged(it) }, phone, { viewModel.onSetupPhoneChanged(it) }, viewModel.phonePrefixes)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Desplegable de Categoría
-        ExposedDropdownMenuBox(
-            expanded = expandedCategory,
-            onExpandedChange = { expandedCategory = !expandedCategory }
-        ) {
-            OutlinedTextField(
-                value = selectedCategory,
-                onValueChange = { },
-                readOnly = true,
-                label = { Text("Categoría Profesional") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) },
-                colors = textFieldColors,
-                modifier = Modifier.menuAnchor().fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = expandedCategory,
-                onDismissRequest = { expandedCategory = false },
-                modifier = Modifier.background(Color.White)
-            ) {
-                viewModel.categories.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option, color = MidnightBlue) },
-                        onClick = {
-                            viewModel.onCategoryChanged(option)
-                            expandedCategory = false
-                        }
-                    )
-                }
+        ExposedDropdownMenuBox(expanded = expandedCategory, onExpandedChange = { expandedCategory = !expandedCategory }) {
+            OutlinedTextField(value = selectedCategory, onValueChange = { }, readOnly = true, label = { Text("Categoría Profesional") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) }, colors = getTextFieldColors(), modifier = Modifier.menuAnchor().fillMaxWidth())
+            ExposedDropdownMenu(expanded = expandedCategory, onDismissRequest = { expandedCategory = false }, modifier = Modifier.background(Color.White)) {
+                viewModel.categories.forEach { option -> DropdownMenuItem(text = { Text(option, color = MidnightBlue) }, onClick = { viewModel.onCategoryChanged(option); expandedCategory = false }) }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Desplegable de Provincia
-        ExposedDropdownMenuBox(
-            expanded = expandedCity,
-            onExpandedChange = { expandedCity = !expandedCity }
-        ) {
-            OutlinedTextField(
-                value = selectedCity,
-                onValueChange = { },
-                readOnly = true,
-                label = { Text("Provincia de Trabajo") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCity) },
-                colors = textFieldColors,
-                modifier = Modifier.menuAnchor().fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = expandedCity,
-                onDismissRequest = { expandedCity = false },
-                modifier = Modifier.background(Color.White)
-            ) {
-                viewModel.provinces.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option, color = MidnightBlue) },
-                        onClick = {
-                            viewModel.onCityChanged(option)
-                            expandedCity = false
-                        }
-                    )
-                }
+        ExposedDropdownMenuBox(expanded = expandedCity, onExpandedChange = { expandedCity = !expandedCity }) {
+            OutlinedTextField(value = selectedCity, onValueChange = { }, readOnly = true, label = { Text("Provincia de Trabajo") }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCity) }, colors = getTextFieldColors(), modifier = Modifier.menuAnchor().fillMaxWidth())
+            ExposedDropdownMenu(expanded = expandedCity, onDismissRequest = { expandedCity = false }, modifier = Modifier.background(Color.White)) {
+                viewModel.provinces.forEach { option -> DropdownMenuItem(text = { Text(option, color = MidnightBlue) }, onClick = { viewModel.onCityChanged(option); expandedCity = false }) }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = description,
-            onValueChange = { viewModel.onDescriptionChanged(it) },
-            label = { Text("Descripción (Tus servicios, experiencia...)") },
-            modifier = Modifier.fillMaxWidth().height(120.dp),
-            colors = textFieldColors,
-            maxLines = 5
+            value = description, onValueChange = { viewModel.onDescriptionChanged(it) },
+            label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth().height(120.dp), colors = getTextFieldColors(), maxLines = 5,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, capitalization = KeyboardCapitalization.Sentences)
         )
+        Text(text = "${description.length}/300", color = Color.White.copy(0.5f), style = MaterialTheme.typography.bodySmall, modifier = Modifier.align(Alignment.End))
+
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = { viewModel.saveCompanyProfile() },
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-            enabled = companyName.isNotEmpty() && selectedCity.isNotEmpty() && selectedCategory.isNotEmpty(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MintVibrant,
-                disabledContainerColor = MintVibrant.copy(alpha = 0.3f)
-            )
-        ) {
-            Text("GUARDAR Y ENTRAR", fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
-        }
-        Spacer(modifier = Modifier.height(32.dp))
+            onClick = { viewModel.saveCompanyProfile() }, modifier = Modifier.fillMaxWidth().height(54.dp),
+            enabled = companyName.length >= 3 && phone.length >= 9 && selectedCity.isNotEmpty() && selectedCategory.isNotEmpty(),
+            colors = ButtonDefaults.buttonColors(containerColor = MintVibrant, disabledContainerColor = MintVibrant.copy(alpha = 0.3f))
+        ) { Text("GUARDAR Y ENTRAR", fontWeight = FontWeight.ExtraBold, color = MidnightBlue) }
     }
 }
 
-// --- SUB-PANTALLA: CONFIGURACIÓN DE CLIENTE ---
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CitySelectionSection(viewModel: HomeViewModel) {
-    val selectedCity by viewModel.selectedCity.collectAsState()
-    var expanded by remember { mutableStateOf(false) }
+data class BottomNavItem(val title: String, val icon: ImageVector)
 
-    val textFieldColors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-        focusedBorderColor = MintVibrant,
-        unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        focusedLabelColor = MintVibrant,
-        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-        cursorColor = MintVibrant
-    )
-
-    Column(
-        modifier = Modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "¡Bienvenido a ServiClick!",
-            style = MaterialTheme.typography.headlineMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Para mostrarte a los mejores profesionales cerca de ti, selecciona tu provincia.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = Color.White.copy(alpha = 0.8f),
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
-        ) {
-            OutlinedTextField(
-                value = selectedCity,
-                onValueChange = { },
-                readOnly = true,
-                label = { Text("Provincia") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                colors = textFieldColors,
-                modifier = Modifier.menuAnchor().fillMaxWidth()
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.background(Color.White)
-            ) {
-                viewModel.provinces.forEach { selectionOption ->
-                    DropdownMenuItem(
-                        text = { Text(selectionOption, color = MidnightBlue) },
-                        onClick = {
-                            viewModel.onCityChanged(selectionOption)
-                            expanded = false
-                        }
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = { viewModel.saveClientCity() },
-            modifier = Modifier.fillMaxWidth().height(54.dp),
-            enabled = selectedCity.isNotEmpty(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MintVibrant,
-                disabledContainerColor = MintVibrant.copy(alpha = 0.3f)
-            )
-        ) {
-            Text("COMENZAR", fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
-        }
-    }
-}
-
-// --- SUB-PANTALLA: EL DASHBOARD PRINCIPAL ---
 @Composable
 fun DashboardSection(viewModel: HomeViewModel, onLogout: () -> Unit) {
     val role by viewModel.userRole.collectAsState()
-    val savedCity by viewModel.savedCity.collectAsState()
+    var currentTab by remember { mutableStateOf(0) }
 
-    Column(
-        modifier = Modifier.padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Panel de $role",
-            style = MaterialTheme.typography.headlineMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "Sede / Ubicación: $savedCity",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MintVibrant,
-            fontWeight = FontWeight.SemiBold
-        )
+    val tabs = if (role == "cliente") {
+        listOf(BottomNavItem("Inicio", Icons.Default.Home), BottomNavItem("Citas", Icons.Default.DateRange), BottomNavItem("Mensajes", Icons.Default.Email), BottomNavItem("Perfil", Icons.Default.Person))
+    } else {
+        listOf(BottomNavItem("Solicitudes", Icons.Default.List), BottomNavItem("Agenda", Icons.Default.DateRange), BottomNavItem("Mensajes", Icons.Default.Email), BottomNavItem("Mi Negocio", Icons.Default.Person))
+    }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(containerColor = Color(0xFF0D1B2A), contentColor = Color.White) {
+                tabs.forEachIndexed { index, item ->
+                    NavigationBarItem(
+                        selected = currentTab == index, onClick = { currentTab = index },
+                        icon = { Icon(item.icon, contentDescription = null) }, label = { Text(item.title) },
+                        colors = NavigationBarItemDefaults.colors(selectedIconColor = MidnightBlue, selectedTextColor = MintVibrant, indicatorColor = MintVibrant, unselectedIconColor = Color.White.copy(alpha = 0.5f), unselectedTextColor = Color.White.copy(alpha = 0.5f))
+                    )
+                }
+            }
+        }
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize().background(MidnightBlue).padding(paddingValues), contentAlignment = Alignment.Center) {
+            when (currentTab) {
+                0 -> PlaceholderScreen("Pantalla de ${tabs[0].title}", "Aquí programaremos la pantalla de inicio.")
+                1 -> PlaceholderScreen("Pantalla de ${tabs[1].title}", "Aquí irá el calendario.")
+                2 -> PlaceholderScreen("Pantalla de ${tabs[2].title}", "Aquí irá el chat.")
+                3 -> ProfileTab(viewModel, onLogout)
+            }
+        }
+    }
+}
+
+@Composable
+fun PlaceholderScreen(title: String, subtitle: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+        Text(text = title, style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = subtitle, style = MaterialTheme.typography.bodyLarge, color = MintVibrant, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+fun ProfileTab(viewModel: HomeViewModel, onLogout: () -> Unit) {
+    val email by viewModel.userEmail.collectAsState()
+    val role by viewModel.userRole.collectAsState()
+    val name by viewModel.userName.collectAsState()
+    val phone by viewModel.userPhone.collectAsState()
+    val city by viewModel.savedCity.collectAsState()
+    val language by viewModel.savedLanguage.collectAsState()
+
+    var showEditName by remember { mutableStateOf(false) }
+    var showEditPhone by remember { mutableStateOf(false) }
+    var showTerms by remember { mutableStateOf(false) }
+    var expandedCity by remember { mutableStateOf(false) }
+    var expandedLang by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+            Surface(modifier = Modifier.size(90.dp), shape = CircleShape, color = MintVibrant.copy(alpha = 0.2f)) {
+                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(20.dp), tint = MintVibrant)
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = if (name.isEmpty()) "Usuario ServiClick" else name, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(text = email, color = Color.White.copy(alpha = 0.6f), style = MaterialTheme.typography.bodyMedium)
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Button(
-            onClick = {
-                viewModel.logout()
-                onLogout()
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = MintVibrant)
-        ) {
-            Text("Cerrar Sesión", color = MidnightBlue, fontWeight = FontWeight.Bold)
+        SectionTitle("DATOS PERSONALES")
+        SettingsItem(title = if(role == "cliente") "Nombre completo" else "Nombre comercial", value = name.ifEmpty { "Toca para configurar" }, icon = Icons.Default.AccountCircle) { showEditName = true }
+        SettingsItem(title = "Teléfono móvil", value = phone.ifEmpty { "Toca para configurar" }, icon = Icons.Default.Phone) { showEditPhone = true }
+
+        Box {
+            SettingsItem(title = "Ubicación / Ciudad", value = city.ifEmpty { "No configurada" }, icon = Icons.Default.LocationOn) { expandedCity = true }
+            DropdownMenu(expanded = expandedCity, onDismissRequest = { expandedCity = false }) {
+                viewModel.provinces.forEach { p -> DropdownMenuItem(text = { Text(p) }, onClick = { viewModel.updateProfileField("city", p); expandedCity = false }) }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SectionTitle("SEGURIDAD Y AJUSTES")
+        Box {
+            SettingsItem(title = "Idioma", value = language, icon = Icons.Default.Info) { expandedLang = true }
+            DropdownMenu(expanded = expandedLang, onDismissRequest = { expandedLang = false }) {
+                viewModel.languages.forEach { l -> DropdownMenuItem(text = { Text(l) }, onClick = { viewModel.updateProfileField("language", l); expandedLang = false }) }
+            }
+        }
+        SettingsItem(title = "Cambiar contraseña", value = "Recibirás un email", icon = Icons.Default.Lock) { viewModel.sendPasswordReset() }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SectionTitle("SOBRE SERVICLICK")
+        SettingsItem(title = "Términos y condiciones", value = "Leer documento", icon = Icons.Default.Menu) { showTerms = true }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(onClick = onLogout, modifier = Modifier.fillMaxWidth().height(50.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.1f))) {
+            Text("CERRAR SESIÓN", color = Color.White, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(onClick = { viewModel.deleteAccount(onLogout) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Eliminar cuenta definitivamente", color = Color(0xFFFF5252))
         }
     }
+
+    if (showEditName) {
+        EditNameDialog(
+            title = if(role == "cliente") "Editar nombre" else "Editar nombre comercial",
+            initialValue = name, isCompany = (role == "empresa"), onDismiss = { showEditName = false }
+        ) { newValue -> viewModel.updateProfileField(if(role == "cliente") "name" else "companyName", newValue) }
+    }
+
+    if (showEditPhone) {
+        EditPhoneDialog(initialPhoneStr = phone, prefixes = viewModel.phonePrefixes, onDismiss = { showEditPhone = false }) { newValue ->
+            viewModel.updateProfileField("phone", newValue)
+        }
+    }
+
+    if (showTerms) {
+        AlertDialog(
+            onDismissRequest = { showTerms = false },
+            confirmButton = { TextButton(onClick = { showTerms = false }) { Text("ENTENDIDO", color = MintVibrant, fontWeight = FontWeight.Bold) } },
+            title = { Text("Términos y Privacidad", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text("Aquí iría el texto legal oficial de ServiClick. Al usar esta aplicación, aceptas que tus datos sean utilizados para conectar profesionales con clientes, cumpliendo con la normativa vigente de protección de datos (RGPD).", color = Color.White.copy(alpha = 0.8f)) },
+            containerColor = MidnightBlue
+        )
+    }
+}
+
+@Composable
+fun EditNameDialog(title: String, initialValue: String, isCompany: Boolean, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(initialValue) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss, title = { Text(title, color = Color.White, fontWeight = FontWeight.Bold) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = {
+                    val isValid = if(isCompany) it.matches(Regex("^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s&'-]*$")) && it.length <= 50
+                    else it.matches(Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]*$")) && it.length <= 40
+                    if (isValid) text = it
+                },
+                singleLine = true, label = { Text("Nombre") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, capitalization = KeyboardCapitalization.Words),
+                colors = getTextFieldColors()
+            )
+        },
+        confirmButton = { TextButton(onClick = { onSave(text.trim()); onDismiss() }, enabled = text.length >= 3) { Text("GUARDAR", color = MintVibrant, fontWeight = FontWeight.Bold) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCELAR", color = Color.White.copy(alpha = 0.7f)) } },
+        containerColor = MidnightBlue
+    )
+}
+
+@Composable
+fun EditPhoneDialog(initialPhoneStr: String, prefixes: List<String>, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    val parts = initialPhoneStr.split(" ")
+    val initialPrefix = if (parts.size > 1) prefixes.find { it.startsWith(parts[0]) } ?: prefixes[0] else prefixes[0]
+    val initialNumber = if (parts.size > 1) parts.last() else ""
+
+    var tempPrefix by remember { mutableStateOf(initialPrefix) }
+    var tempPhone by remember { mutableStateOf(initialNumber) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss, title = { Text("Editar teléfono", color = Color.White, fontWeight = FontWeight.Bold) },
+        text = {
+            PhoneInputField(
+                prefixValue = tempPrefix, onPrefixChange = { tempPrefix = it },
+                phoneValue = tempPhone, onPhoneChange = { if (it.all { char -> char.isDigit() } && it.length <= 15) tempPhone = it },
+                prefixes = prefixes
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val cleanPrefix = tempPrefix.substringBefore(" ")
+                    onSave("$cleanPrefix ${tempPhone.trim()}")
+                    onDismiss()
+                },
+                enabled = tempPhone.length >= 9
+            ) { Text("GUARDAR", color = MintVibrant, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCELAR", color = Color.White.copy(alpha = 0.7f)) } },
+        containerColor = MidnightBlue
+    )
+}
+
+@Composable
+fun SectionTitle(title: String) { Text(title, color = MintVibrant, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp, start = 8.dp)) }
+
+@Composable
+fun SettingsItem(title: String, value: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 12.dp, horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = MintVibrant, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(16.dp))
+        Column { Text(title, color = Color.White.copy(alpha = 0.7f), style = MaterialTheme.typography.bodySmall); Text(value, color = Color.White, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold) }
+        Spacer(modifier = Modifier.weight(1f))
+        Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.White.copy(alpha = 0.3f))
+    }
+    HorizontalDivider(color = Color.White.copy(alpha = 0.1f))
 }

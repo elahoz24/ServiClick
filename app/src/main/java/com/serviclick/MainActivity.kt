@@ -42,7 +42,7 @@ class MainActivity : ComponentActivity() {
 fun ServiClickApp() {
     val navController = rememberNavController()
 
-    // LA MAGIA DEL AUTO-LOGIN: ¿Hay un usuario guardado?
+    // LA MAGIA DEL AUTO-LOGIN
     val startingScreen: Any = if (FirebaseAuth.getInstance().currentUser != null) {
         HomeDestination
     } else {
@@ -59,7 +59,6 @@ fun ServiClickApp() {
                     navController.navigate(RegisterDestination)
                 },
                 onNavigateToHome = {
-                    // Navegamos al Home y destruimos el Login para que no pueda volver atrás
                     navController.navigate(HomeDestination) {
                         popUpTo(LoginDestination) { inclusive = true }
                     }
@@ -70,13 +69,18 @@ fun ServiClickApp() {
             RegisterScreen(
                 onNavigateBack = {
                     navController.popBackStack()
+                },
+                // --- ¡NUEVO! Le decimos cómo ir al Home ---
+                onNavigateToHome = {
+                    navController.navigate(HomeDestination) {
+                        popUpTo(LoginDestination) { inclusive = true }
+                    }
                 }
             )
         }
         composable<HomeDestination> {
             HomeScreen(
                 onLogout = {
-                    // Navegamos al Login y destruimos el Home
                     navController.navigate(LoginDestination) {
                         popUpTo(HomeDestination) { inclusive = true }
                     }
