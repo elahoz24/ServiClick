@@ -6,11 +6,14 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.FirebaseNetworkException
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import javax.inject.Inject
 
-class LoginViewModel : ViewModel() {
+@HiltViewModel
+class LoginViewModel @Inject constructor() : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
 
@@ -29,7 +32,6 @@ class LoginViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    // NUEVO: Estado para el mensaje de éxito al resetear la contraseña
     private val _resetMessage = MutableStateFlow<String?>(null)
     val resetMessage: StateFlow<String?> = _resetMessage.asStateFlow()
 
@@ -58,7 +60,6 @@ class LoginViewModel : ViewModel() {
             }
     }
 
-    // --- NUEVO: FUNCIÓN PARA RECUPERAR CONTRASEÑA ---
     fun onResetPassword(emailToReset: String) {
         if (!isValidEmail(emailToReset)) {
             _errorMessage.value = "Por favor, introduce un correo electrónico válido."

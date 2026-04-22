@@ -20,7 +20,9 @@ import com.serviclick.presentation.auth.LoginScreen
 import com.serviclick.presentation.auth.RegisterScreen
 import com.serviclick.presentation.home.HomeScreen
 import com.serviclick.ui.theme.ServiClickTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,7 +33,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ServiClickApplication()
+                    ServiClickApp()
                 }
             }
         }
@@ -42,7 +44,6 @@ class MainActivity : ComponentActivity() {
 fun ServiClickApp() {
     val navController = rememberNavController()
 
-    // LA MAGIA DEL AUTO-LOGIN
     val startingScreen: Any = if (FirebaseAuth.getInstance().currentUser != null) {
         HomeDestination
     } else {
@@ -70,7 +71,6 @@ fun ServiClickApp() {
                 onNavigateBack = {
                     navController.popBackStack()
                 },
-                // --- ¡NUEVO! Le decimos cómo ir al Home ---
                 onNavigateToHome = {
                     navController.navigate(HomeDestination) {
                         popUpTo(LoginDestination) { inclusive = true }

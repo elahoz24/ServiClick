@@ -10,9 +10,7 @@ plugins {
 
 android {
     namespace = "com.serviclick"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.serviclick"
@@ -68,7 +66,6 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.lifecycle.viewmodel.compose)
-
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
 
@@ -80,5 +77,5 @@ dependencies {
 
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
-
+    implementation(libs.androidx.hilt.navigation.compose)
 }

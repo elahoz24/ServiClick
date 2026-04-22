@@ -12,14 +12,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.serviclick.presentation.home.components.*
 import com.serviclick.ui.theme.*
 
 data class BottomNavItem(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = viewModel(), onLogout: () -> Unit) {
+fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onLogout: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
