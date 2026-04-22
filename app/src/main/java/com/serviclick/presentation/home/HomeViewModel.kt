@@ -41,6 +41,13 @@ class HomeViewModel : ViewModel() {
     private val _savedLanguage = MutableStateFlow("Español")
     val savedLanguage: StateFlow<String> = _savedLanguage.asStateFlow()
 
+    // --- NUEVO: EXCLUSIVO DE EMPRESAS ---
+    private val _savedCategory = MutableStateFlow("")
+    val savedCategory: StateFlow<String> = _savedCategory.asStateFlow()
+
+    private val _savedDescription = MutableStateFlow("")
+    val savedDescription: StateFlow<String> = _savedDescription.asStateFlow()
+
     val provinces = listOf("A Coruña", "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Baleares", "Barcelona", "Burgos", "Cáceres", "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "Cuenca", "Girona", "Granada", "Guadalajara", "Gipuzkoa", "Huelva", "Huesca", "Jaén", "La Rioja", "Las Palmas", "León", "Lérida", "Lugo", "Madrid", "Málaga", "Murcia", "Navarra", "Ourense", "Palencia", "Pontevedra", "Salamanca", "Segovia", "Sevilla", "Soria", "Tarragona", "Santa Cruz de Tenerife", "Teruel", "Toledo", "Valencia", "Valladolid", "Vizcaya", "Zamora", "Zaragoza", "Ceuta", "Melilla")
     val categories = listOf("Fontanería", "Electricidad", "Limpieza", "Reformas", "Cerrajería", "Pintura", "Carpintería", "Climatización", "Jardinería", "Mudanzas")
     val languages = listOf("Español", "English", "Français", "Deutsch")
@@ -81,6 +88,10 @@ class HomeViewModel : ViewModel() {
                 _savedLanguage.value = document.getString("language") ?: "Español"
                 _userName.value = if (role == "empresa") company else name
                 _userPhone.value = phoneDoc
+
+                // Cargamos los datos extra si es empresa
+                _savedCategory.value = document.getString("category") ?: ""
+                _savedDescription.value = document.getString("description") ?: ""
 
                 if (role == "cliente") {
                     _uiState.value = if (city.isEmpty() || name.isEmpty() || phoneDoc.isEmpty()) HomeState.NEEDS_CLIENT_INFO else HomeState.DASHBOARD
@@ -127,7 +138,6 @@ class HomeViewModel : ViewModel() {
 
     fun saveClientProfile() {
         val userId = auth.currentUser?.uid ?: return
-        // VALIDACIÓN: Mínimo 9 dígitos para el teléfono
         if (_setupName.value.length >= 3 && _setupPhone.value.length >= 9 && _selectedCity.value.isNotEmpty()) {
             _uiState.value = HomeState.LOADING
             val cleanPrefix = _setupPhonePrefix.value.substringBefore(" ")
@@ -142,7 +152,6 @@ class HomeViewModel : ViewModel() {
 
     fun saveCompanyProfile() {
         val userId = auth.currentUser?.uid ?: return
-        // VALIDACIÓN: Mínimo 9 dígitos para el teléfono
         if (_setupName.value.length >= 3 && _setupPhone.value.length >= 9 && _selectedCity.value.isNotEmpty() && _selectedCategory.value.isNotEmpty()) {
             _uiState.value = HomeState.LOADING
             val cleanPrefix = _setupPhonePrefix.value.substringBefore(" ")

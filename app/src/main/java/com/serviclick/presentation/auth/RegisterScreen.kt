@@ -19,8 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serviclick.R
-import com.serviclick.ui.theme.MidnightBlue
-import com.serviclick.ui.theme.MintVibrant
+import com.serviclick.ui.theme.*
 
 @Composable
 fun RegisterScreen(
@@ -34,12 +33,10 @@ fun RegisterScreen(
     val role by viewModel.role.collectAsState()
     val isRegisterEnabled by viewModel.isRegisterEnabled.collectAsState()
 
-    // ESTADOS DE FIREBASE QUE FALTABAN
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val registerSuccess by viewModel.registerSuccess.collectAsState()
 
-    // Efecto para navegar automáticamente cuando el registro sea un éxito
     LaunchedEffect(registerSuccess) {
         if (registerSuccess) {
             onNavigateToHome()
@@ -47,19 +44,19 @@ fun RegisterScreen(
     }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = MintVibrant,
-        unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        focusedLabelColor = MintVibrant,
-        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-        cursorColor = MintVibrant
+        focusedBorderColor = SunsetOrange,
+        unfocusedBorderColor = ForestGreen.copy(alpha = 0.5f),
+        focusedTextColor = ForestGreen,
+        unfocusedTextColor = ForestGreen,
+        focusedLabelColor = SunsetOrange,
+        unfocusedLabelColor = ForestGreen.copy(alpha = 0.7f),
+        cursorColor = SunsetOrange
     )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MidnightBlue)
+            .background(CreamBackground)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -72,7 +69,6 @@ fun RegisterScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Mostrar error si Firebase nos devuelve uno
         errorMessage?.let {
             Text(
                 text = it,
@@ -122,7 +118,7 @@ fun RegisterScreen(
 
         Text(
             text = "¿Qué perfil buscas?",
-            color = Color.White,
+            color = ForestGreen,
             fontWeight = FontWeight.SemiBold,
             style = MaterialTheme.typography.bodyMedium
         )
@@ -135,11 +131,11 @@ fun RegisterScreen(
                 selected = role == "cliente",
                 onClick = { if (!isLoading) viewModel.onRoleChanged("cliente") },
                 colors = RadioButtonDefaults.colors(
-                    selectedColor = MintVibrant,
-                    unselectedColor = Color.White.copy(alpha = 0.6f)
+                    selectedColor = SunsetOrange,
+                    unselectedColor = ForestGreen.copy(alpha = 0.6f)
                 )
             )
-            Text("Cliente", color = Color.White)
+            Text("Cliente", color = ForestGreen)
 
             Spacer(modifier = Modifier.width(20.dp))
 
@@ -147,11 +143,11 @@ fun RegisterScreen(
                 selected = role == "empresa",
                 onClick = { if (!isLoading) viewModel.onRoleChanged("empresa") },
                 colors = RadioButtonDefaults.colors(
-                    selectedColor = MintVibrant,
-                    unselectedColor = Color.White.copy(alpha = 0.6f)
+                    selectedColor = SunsetOrange,
+                    unselectedColor = ForestGreen.copy(alpha = 0.6f)
                 )
             )
-            Text("Empresa", color = Color.White)
+            Text("Empresa", color = ForestGreen)
         }
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -159,23 +155,23 @@ fun RegisterScreen(
         Button(
             onClick = { viewModel.onRegisterSelected() },
             modifier = Modifier.fillMaxWidth().height(54.dp),
-            enabled = isRegisterEnabled && !isLoading, // Se desactiva mientras carga
+            enabled = isRegisterEnabled && !isLoading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MintVibrant,
-                disabledContainerColor = MintVibrant.copy(alpha = 0.3f)
+                containerColor = SunsetOrange,
+                disabledContainerColor = SunsetOrange.copy(alpha = 0.3f)
             )
         ) {
             if (isLoading) {
-                CircularProgressIndicator(color = MidnightBlue, modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(color = CreamBackground, modifier = Modifier.size(24.dp))
             } else {
-                Text("REGISTRARME", fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
+                Text("REGISTRARME", fontWeight = FontWeight.ExtraBold, color = CreamBackground)
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         TextButton(onClick = { onNavigateBack() }, enabled = !isLoading) {
-            Text("¿Ya tienes cuenta? Inicia sesión", color = MintVibrant)
+            Text("¿Ya tienes cuenta? Inicia sesión", color = SunsetOrange)
         }
     }
 }

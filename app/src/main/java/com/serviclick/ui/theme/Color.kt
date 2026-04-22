@@ -2,7 +2,7 @@ package com.serviclick.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta "Modern Local" para ServiClick
-val MidnightBlue = Color(0xFF1B263B) // Fondo profundo, transmite confianza
-val MintVibrant = Color(0xFF06D6A0)  // Color de acción, fresco y moderno
-val SoftWhite = Color(0xFFF8F9FA)    // Para textos y fondos claros
+val ForestGreen = Color(0xFF344F1F)     // Verde oscuro para textos y contrastes
+val SunsetOrange = Color(0xFFF4991A)    // Naranja para botones y acentos
+val BeigeSurface = Color(0xFFF2EAD3)    // Beige para tarjetas y barras
+val CreamBackground = Color(0xFFF9F5F0) // Crema para el fondo principal

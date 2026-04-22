@@ -15,8 +15,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.serviclick.R
-import com.serviclick.ui.theme.MidnightBlue
-import com.serviclick.ui.theme.MintVibrant
+import com.serviclick.ui.theme.*
 
 @Composable
 fun LoginScreen(
@@ -33,7 +32,6 @@ fun LoginScreen(
     val resetMessage by viewModel.resetMessage.collectAsState()
     val loginSuccess by viewModel.loginSuccess.collectAsState()
 
-    // Variable para controlar si mostramos u ocultamos el Pop-Up
     var showResetDialog by remember { mutableStateOf(false) }
     var resetEmail by remember { mutableStateOf("") }
 
@@ -44,19 +42,19 @@ fun LoginScreen(
     }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = MintVibrant,
-        unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
-        focusedTextColor = Color.White,
-        unfocusedTextColor = Color.White,
-        focusedLabelColor = MintVibrant,
-        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
-        cursorColor = MintVibrant
+        focusedBorderColor = SunsetOrange,
+        unfocusedBorderColor = ForestGreen.copy(alpha = 0.5f),
+        focusedTextColor = ForestGreen,
+        unfocusedTextColor = ForestGreen,
+        focusedLabelColor = SunsetOrange,
+        unfocusedLabelColor = ForestGreen.copy(alpha = 0.7f),
+        cursorColor = SunsetOrange
     )
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MidnightBlue)
+            .background(CreamBackground)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -69,14 +67,12 @@ fun LoginScreen(
 
         Spacer(modifier = Modifier.height(48.dp))
 
-        // Mensaje de Error (Rojo)
         errorMessage?.let {
             Text(text = it, color = Color(0xFFFF5252), modifier = Modifier.padding(bottom = 16.dp), textAlign = TextAlign.Center)
         }
 
-        // Mensaje de Éxito al resetear (Verde menta)
         resetMessage?.let {
-            Text(text = it, color = MintVibrant, modifier = Modifier.padding(bottom = 16.dp), textAlign = TextAlign.Center)
+            Text(text = it, color = SunsetOrange, modifier = Modifier.padding(bottom = 16.dp), textAlign = TextAlign.Center)
         }
 
         OutlinedTextField(
@@ -102,7 +98,6 @@ fun LoginScreen(
             enabled = !isLoading
         )
 
-        // Botón de recuperar contraseña
         TextButton(
             onClick = {
                 viewModel.clearMessages()
@@ -110,7 +105,7 @@ fun LoginScreen(
             },
             modifier = Modifier.align(Alignment.End)
         ) {
-            Text("¿Has olvidado tu contraseña?", color = Color.White.copy(alpha = 0.7f))
+            Text("¿Has olvidado tu contraseña?", color = ForestGreen.copy(alpha = 0.7f))
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -120,31 +115,30 @@ fun LoginScreen(
             modifier = Modifier.fillMaxWidth().height(54.dp),
             enabled = isLoginEnabled && !isLoading,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MintVibrant,
-                disabledContainerColor = MintVibrant.copy(alpha = 0.3f)
+                containerColor = SunsetOrange,
+                disabledContainerColor = SunsetOrange.copy(alpha = 0.3f)
             )
         ) {
             if (isLoading) {
-                CircularProgressIndicator(color = MidnightBlue, modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(color = CreamBackground, modifier = Modifier.size(24.dp))
             } else {
-                Text("ENTRAR", fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
+                Text("ENTRAR", fontWeight = FontWeight.ExtraBold, color = CreamBackground)
             }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
         TextButton(onClick = { onNavigateToRegister() }, enabled = !isLoading) {
-            Text("¿Nuevo aquí? Crea tu cuenta", color = MintVibrant)
+            Text("¿Nuevo aquí? Crea tu cuenta", color = SunsetOrange)
         }
     }
 
-    // --- EL POP-UP DE RECUPERAR CONTRASEÑA ---
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            containerColor = MidnightBlue, // Color de fondo del pop-up
-            titleContentColor = Color.White,
-            textContentColor = Color.White,
+            containerColor = BeigeSurface,
+            titleContentColor = ForestGreen,
+            textContentColor = ForestGreen,
             title = { Text(text = "Recuperar contraseña", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
@@ -166,14 +160,14 @@ fun LoginScreen(
                         viewModel.onResetPassword(resetEmail)
                         showResetDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = MintVibrant)
+                    colors = ButtonDefaults.buttonColors(containerColor = SunsetOrange)
                 ) {
-                    Text("Enviar", color = MidnightBlue, fontWeight = FontWeight.Bold)
+                    Text("Enviar", color = CreamBackground, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) {
-                    Text("Cancelar", color = Color.White)
+                    Text("Cancelar", color = ForestGreen)
                 }
             }
         )

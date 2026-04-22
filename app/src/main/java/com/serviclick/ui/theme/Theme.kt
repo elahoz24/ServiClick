@@ -5,17 +5,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val ServiClickColorScheme = lightColorScheme(
-    primary = MintVibrant,      // Botones en Verde Menta
-    onPrimary = MidnightBlue,   // Texto del botón en azul oscuro para contraste
-    secondary = MidnightBlue,
-    background = MidnightBlue,  // Fondo de la app por defecto
-    surface = SoftWhite
+    primary = SunsetOrange,
+    onPrimary = CreamBackground,
+    secondary = ForestGreen,
+    background = CreamBackground,
+    surface = BeigeSurface
 )
 
 @Composable
@@ -24,8 +23,9 @@ fun ServiClickTheme(content: @Composable () -> Unit) {
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = MidnightBlue.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            window.statusBarColor = CreamBackground.toArgb()
+            // Como el fondo es claro, los iconos de la batería/hora deben ser oscuros (true)
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
 
