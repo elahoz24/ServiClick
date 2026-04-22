@@ -1,19 +1,28 @@
 package com.serviclick.presentation.home
 
 import androidx.lifecycle.ViewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
-import com.google.firebase.firestore.FirebaseFirestore
+import androidx.lifecycle.viewModelScope
+import com.serviclick.domain.model.CompanyProfile
+import com.serviclick.domain.repository.UserRepository
+import com.serviclick.domain.use_case.GetCompaniesUseCase
+import com.serviclick.domain.use_case.GetUserProfileUseCase
+import com.serviclick.domain.use_case.UpdateProfileUseCase
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 enum class HomeState { LOADING, NEEDS_CLIENT_INFO, NEEDS_COMPANY_INFO, DASHBOARD }
 
-class HomeViewModel : ViewModel() {
-
-    private val auth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance()
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val getUserProfileUseCase: GetUserProfileUseCase,
+    private val getCompaniesUseCase: GetCompaniesUseCase,
+    private val updateProfileUseCase: UpdateProfileUseCase,
+    private val repository: UserRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeState.LOADING)
     val uiState: StateFlow<HomeState> = _uiState.asStateFlow()
@@ -21,9 +30,7 @@ class HomeViewModel : ViewModel() {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    fun clearErrorMessage() { _errorMessage.value = null }
-
-    private val _userEmail = MutableStateFlow(auth.currentUser?.email ?: "")
+    private val _userEmail = MutableStateFlow(repository.getCurrentUserEmail())
     val userEmail: StateFlow<String> = _userEmail.asStateFlow()
 
     private val _userRole = MutableStateFlow("")
@@ -38,15 +45,29 @@ class HomeViewModel : ViewModel() {
     private val _savedCity = MutableStateFlow("")
     val savedCity: StateFlow<String> = _savedCity.asStateFlow()
 
-    private val _savedLanguage = MutableStateFlow("Español")
-    val savedLanguage: StateFlow<String> = _savedLanguage.asStateFlow()
+    private val _savedAddress = MutableStateFlow("")
+    val savedAddress: StateFlow<String> = _savedAddress.asStateFlow()
 
-    // --- NUEVO: EXCLUSIVO DE EMPRESAS ---
     private val _savedCategory = MutableStateFlow("")
     val savedCategory: StateFlow<String> = _savedCategory.asStateFlow()
 
     private val _savedDescription = MutableStateFlow("")
     val savedDescription: StateFlow<String> = _savedDescription.asStateFlow()
+
+    private val _profileImage = MutableStateFlow("")
+    val profileImage: StateFlow<String> = _profileImage.asStateFlow()
+
+    private val _bannerImage = MutableStateFlow("")
+    val bannerImage: StateFlow<String> = _bannerImage.asStateFlow()
+
+    private val _savedLanguage = MutableStateFlow("Español")
+    val savedLanguage: StateFlow<String> = _savedLanguage.asStateFlow()
+
+    private val _companiesList = MutableStateFlow<List<CompanyProfile>>(emptyList())
+    val companiesList: StateFlow<List<CompanyProfile>> = _companiesList.asStateFlow()
+
+    private val _isLoadingCompanies = MutableStateFlow(false)
+    val isLoadingCompanies: StateFlow<Boolean> = _isLoadingCompanies.asStateFlow()
 
     val provinces = listOf("A Coruña", "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Baleares", "Barcelona", "Burgos", "Cáceres", "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "Cuenca", "Girona", "Granada", "Guadalajara", "Gipuzkoa", "Huelva", "Huesca", "Jaén", "La Rioja", "Las Palmas", "León", "Lérida", "Lugo", "Madrid", "Málaga", "Murcia", "Navarra", "Ourense", "Palencia", "Pontevedra", "Salamanca", "Segovia", "Sevilla", "Soria", "Tarragona", "Santa Cruz de Tenerife", "Teruel", "Toledo", "Valencia", "Valladolid", "Vizcaya", "Zamora", "Zaragoza", "Ceuta", "Melilla")
     val categories = listOf("Fontanería", "Electricidad", "Limpieza", "Reformas", "Cerrajería", "Pintura", "Carpintería", "Climatización", "Jardinería", "Mudanzas")
@@ -71,128 +92,164 @@ class HomeViewModel : ViewModel() {
     private val _description = MutableStateFlow("")
     val description: StateFlow<String> = _description.asStateFlow()
 
-    init { fetchUserProfile() }
+    init {
+        fetchUserProfile()
+    }
+
+    fun clearErrorMessage() {
+        _errorMessage.value = null
+    }
 
     private fun fetchUserProfile() {
-        val userId = auth.currentUser?.uid ?: return
-        db.collection("users").document(userId).get().addOnSuccessListener { document ->
-            if (document != null && document.exists()) {
-                val role = document.getString("role") ?: "cliente"
-                val city = document.getString("city") ?: ""
-                val company = document.getString("companyName") ?: ""
-                val name = document.getString("name") ?: ""
-                val phoneDoc = document.getString("phone") ?: ""
+        viewModelScope.launch {
+            _uiState.value = HomeState.LOADING
+            getUserProfileUseCase().onSuccess { profile ->
+                _userRole.value = profile.role
+                _savedCity.value = profile.city
+                _savedAddress.value = profile.address
+                _savedLanguage.value = profile.language
+                _userName.value = if (profile.role == "empresa") profile.companyName else profile.name
+                _userPhone.value = profile.phone
+                _savedCategory.value = profile.category
+                _savedDescription.value = profile.description
+                _profileImage.value = profile.profileImage
+                _bannerImage.value = profile.bannerImage
 
-                _userRole.value = role
-                _savedCity.value = city
-                _savedLanguage.value = document.getString("language") ?: "Español"
-                _userName.value = if (role == "empresa") company else name
-                _userPhone.value = phoneDoc
-
-                // Cargamos los datos extra si es empresa
-                _savedCategory.value = document.getString("category") ?: ""
-                _savedDescription.value = document.getString("description") ?: ""
-
-                if (role == "cliente") {
-                    _uiState.value = if (city.isEmpty() || name.isEmpty() || phoneDoc.isEmpty()) HomeState.NEEDS_CLIENT_INFO else HomeState.DASHBOARD
-                } else if (role == "empresa") {
-                    _uiState.value = if (company.isEmpty() || city.isEmpty() || phoneDoc.isEmpty()) HomeState.NEEDS_COMPANY_INFO else HomeState.DASHBOARD
+                if (profile.role == "cliente") {
+                    if (profile.city.isEmpty() || profile.name.isEmpty() || profile.phone.isEmpty()) {
+                        _uiState.value = HomeState.NEEDS_CLIENT_INFO
+                    } else {
+                        _uiState.value = HomeState.DASHBOARD
+                        fetchCompaniesInMyCity(profile.city)
+                    }
+                } else {
+                    if (profile.companyName.isEmpty() || profile.city.isEmpty()) {
+                        _uiState.value = HomeState.NEEDS_COMPANY_INFO
+                    } else {
+                        _uiState.value = HomeState.DASHBOARD
+                    }
                 }
-            } else {
+            }.onFailure {
+                _errorMessage.value = it.message ?: "Error al cargar el perfil"
                 _uiState.value = HomeState.DASHBOARD
-                _errorMessage.value = "Tu cuenta está corrupta (No hay datos de perfil). Por favor, ve a la pestaña de Perfil y Elimina la cuenta para volver a registrarte."
             }
-        }.addOnFailureListener { exception ->
-            _uiState.value = HomeState.DASHBOARD
-            _errorMessage.value = "Error al conectar con el servidor: ${exception.message}"
         }
     }
 
-    fun onSetupNameChanged(newName: String) {
-        if (newName.matches(Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]*$")) && newName.length <= 40) {
-            _setupName.value = newName
-        }
-    }
-
-    fun onSetupCompanyNameChanged(newName: String) {
-        if (newName.matches(Regex("^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s&'-]*$")) && newName.length <= 50) {
-            _setupName.value = newName
-        }
-    }
-
-    fun onSetupPhoneChanged(newPhone: String) {
-        if (newPhone.all { it.isDigit() } && newPhone.length <= 15) {
-            _setupPhone.value = newPhone
-        }
-    }
-
-    fun onDescriptionChanged(newDesc: String) {
-        if (newDesc.length <= 300) {
-            _description.value = newDesc
-        }
-    }
-
-    fun onSetupPhonePrefixChanged(newPrefix: String) { _setupPhonePrefix.value = newPrefix }
-    fun onCityChanged(newCity: String) { _selectedCity.value = newCity }
-    fun onCategoryChanged(newCategory: String) { _selectedCategory.value = newCategory }
-
-    fun saveClientProfile() {
-        val userId = auth.currentUser?.uid ?: return
-        if (_setupName.value.length >= 3 && _setupPhone.value.length >= 9 && _selectedCity.value.isNotEmpty()) {
-            _uiState.value = HomeState.LOADING
-            val cleanPrefix = _setupPhonePrefix.value.substringBefore(" ")
-            val fullPhone = "$cleanPrefix ${_setupPhone.value.trim()}"
-
-            db.collection("users").document(userId).update(mapOf("name" to _setupName.value.trim(), "phone" to fullPhone, "city" to _selectedCity.value))
-                .addOnSuccessListener { fetchUserProfile() }
-        } else {
-            _errorMessage.value = "Por favor, rellena todos los campos correctamente."
-        }
-    }
-
-    fun saveCompanyProfile() {
-        val userId = auth.currentUser?.uid ?: return
-        if (_setupName.value.length >= 3 && _setupPhone.value.length >= 9 && _selectedCity.value.isNotEmpty() && _selectedCategory.value.isNotEmpty()) {
-            _uiState.value = HomeState.LOADING
-            val cleanPrefix = _setupPhonePrefix.value.substringBefore(" ")
-            val fullPhone = "$cleanPrefix ${_setupPhone.value.trim()}"
-
-            db.collection("users").document(userId).update(mapOf("companyName" to _setupName.value.trim(), "phone" to fullPhone, "city" to _selectedCity.value, "category" to _selectedCategory.value, "description" to _description.value.trim()))
-                .addOnSuccessListener { fetchUserProfile() }
-        } else {
-            _errorMessage.value = "Por favor, revisa que todos los campos sean correctos y válidos."
+    fun fetchCompaniesInMyCity(city: String) {
+        viewModelScope.launch {
+            _isLoadingCompanies.value = true
+            getCompaniesUseCase(city).onSuccess { list ->
+                _companiesList.value = list
+                _isLoadingCompanies.value = false
+            }.onFailure {
+                _isLoadingCompanies.value = false
+                _errorMessage.value = "Error al buscar profesionales en $city"
+            }
         }
     }
 
     fun updateProfileField(field: String, value: String) {
-        val userId = auth.currentUser?.uid ?: return
-        db.collection("users").document(userId).update(field, value).addOnSuccessListener { fetchUserProfile() }
-    }
-
-    fun sendPasswordReset() { auth.currentUser?.email?.let { auth.sendPasswordResetEmail(it) } }
-
-    fun deleteAccount(onComplete: () -> Unit) {
-        val user = auth.currentUser
-        val userId = user?.uid
-        if (userId != null && user != null) {
-            _uiState.value = HomeState.LOADING
-            db.collection("users").document(userId).delete().addOnSuccessListener {
-                user.delete().addOnSuccessListener {
-                    onComplete()
-                }.addOnFailureListener { exception ->
-                    _uiState.value = HomeState.DASHBOARD
-                    if (exception is FirebaseAuthRecentLoginRequiredException) {
-                        _errorMessage.value = "Por seguridad, debes cerrar sesión y volver a entrar antes de eliminar tu cuenta permanentemente."
-                    } else {
-                        _errorMessage.value = "Error al eliminar la cuenta de Google: ${exception.message}"
-                    }
-                }
-            }.addOnFailureListener {
-                _uiState.value = HomeState.DASHBOARD
-                _errorMessage.value = "Error al borrar los datos del servidor."
+        viewModelScope.launch {
+            updateProfileUseCase.updateField(field, value).onSuccess {
+                fetchUserProfile()
+            }.onFailure {
+                _errorMessage.value = "No se pudo actualizar el campo $field"
             }
         }
     }
 
-    fun logout() { auth.signOut() }
+    fun saveClientProfile() {
+        viewModelScope.launch {
+            _uiState.value = HomeState.LOADING
+            val fullPhone = "${_setupPhonePrefix.value.substringBefore(" ")} ${_setupPhone.value.trim()}"
+            val data = mapOf(
+                "name" to _setupName.value.trim(),
+                "phone" to fullPhone,
+                "city" to _selectedCity.value
+            )
+            updateProfileUseCase.updateMultiple(data).onSuccess {
+                fetchUserProfile()
+            }.onFailure {
+                _uiState.value = HomeState.NEEDS_CLIENT_INFO
+                _errorMessage.value = "Error al guardar el perfil: ${it.message}"
+            }
+        }
+    }
+
+    fun saveCompanyProfile() {
+        viewModelScope.launch {
+            _uiState.value = HomeState.LOADING
+            val fullPhone = "${_setupPhonePrefix.value.substringBefore(" ")} ${_setupPhone.value.trim()}"
+            val data = mapOf(
+                "companyName" to _setupName.value.trim(),
+                "phone" to fullPhone,
+                "city" to _selectedCity.value,
+                "category" to _selectedCategory.value,
+                "description" to _description.value.trim()
+            )
+            updateProfileUseCase.updateMultiple(data).onSuccess {
+                fetchUserProfile()
+            }.onFailure {
+                _uiState.value = HomeState.NEEDS_COMPANY_INFO
+                _errorMessage.value = "Error al guardar el perfil de empresa: ${it.message}"
+            }
+        }
+    }
+
+    fun onSetupNameChanged(v: String) {
+        if (v.matches(Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]*$")) && v.length <= 40) {
+            _setupName.value = v
+        }
+    }
+
+    fun onSetupCompanyNameChanged(v: String) {
+        if (v.matches(Regex("^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s&'-]*$")) && v.length <= 50) {
+            _setupName.value = v
+        }
+    }
+
+    fun onSetupPhoneChanged(v: String) {
+        if (v.all { it.isDigit() } && v.length <= 15) {
+            _setupPhone.value = v
+        }
+    }
+
+    fun onCityChanged(v: String) {
+        _selectedCity.value = v
+    }
+
+    fun onCategoryChanged(v: String) {
+        _selectedCategory.value = v
+    }
+
+    fun onDescriptionChanged(v: String) {
+        if (v.length <= 300) {
+            _description.value = v
+        }
+    }
+
+    fun onSetupPhonePrefixChanged(v: String) {
+        _setupPhonePrefix.value = v
+    }
+
+    fun logout() {
+        repository.logout()
+    }
+
+    fun sendPasswordReset() {
+        repository.sendPasswordReset()
+    }
+
+    fun deleteAccount(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = HomeState.LOADING
+            repository.deleteAccount().onSuccess {
+                onComplete()
+            }.onFailure {
+                _uiState.value = HomeState.DASHBOARD
+                _errorMessage.value = it.message
+            }
+        }
+    }
 }
