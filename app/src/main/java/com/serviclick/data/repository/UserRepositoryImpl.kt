@@ -21,51 +21,72 @@ class UserRepositoryImpl @Inject constructor() : UserRepository {
         if (doc.exists()) {
             Result.success(UserProfile(
                 id = doc.id,
+                email = auth.currentUser?.email ?: "",
                 role = doc.getString("role") ?: "cliente",
                 name = doc.getString("name") ?: "",
-                companyName = doc.getString("companyName") ?: "",
                 phone = doc.getString("phone") ?: "",
                 city = doc.getString("city") ?: "",
                 address = doc.getString("address") ?: "",
-                category = doc.getString("category") ?: "",
-                description = doc.getString("description") ?: "",
                 profileImage = doc.getString("profileImage") ?: "",
-                bannerImage = doc.getString("bannerImage") ?: ""
+                language = doc.getString("language") ?: "Español"
             ))
-        } else Result.failure(Exception("No existe"))
+        } else Result.failure(Exception("Usuario no encontrado"))
     } catch (e: Exception) { Result.failure(e) }
 
-    override suspend fun getCompaniesInCity(city: String): Result<List<CompanyProfile>> = try {
-        val snapshot = db.collection("users").whereEqualTo("role", "empresa").whereEqualTo("city", city).get().await()
-        val list = snapshot.documents.map { doc ->
-            CompanyProfile(
+    override suspend fun getCompanyProfile(id: String): Result<CompanyProfile> = try {
+        val doc = db.collection("company_profiles").document(id).get().await()
+        if (doc.exists()) {
+            Result.success(CompanyProfile(
                 id = doc.id,
-                name = doc.getString("companyName") ?: doc.getString("name") ?: "",
+                name = doc.getString("name") ?: "",
                 category = doc.getString("category") ?: "",
                 description = doc.getString("description") ?: "",
                 city = doc.getString("city") ?: "",
+                address = doc.getString("address") ?: "",
                 profileImage = doc.getString("profileImage") ?: "",
-                bannerImage = doc.getString("bannerImage") ?: ""
+                bannerImage = doc.getString("bannerImage") ?: "",
+                rating = doc.getDouble("rating") ?: 0.0,
+                reviewCount = doc.getLong("reviewCount")?.toInt() ?: 0
+            ))
+        } else Result.failure(Exception("Perfil comercial no encontrado"))
+    } catch (e: Exception) { Result.failure(e) }
+
+    override suspend fun getCompaniesInCity(city: String): Result<List<CompanyProfile>> = try {
+        val snapshot = db.collection("company_profiles").whereEqualTo("city", city).get().await()
+        val list = snapshot.documents.map { doc ->
+            CompanyProfile(
+                id = doc.id,
+                name = doc.getString("name") ?: "",
+                category = doc.getString("category") ?: "",
+                description = doc.getString("description") ?: "",
+                city = doc.getString("city") ?: "",
+                address = doc.getString("address") ?: "",
+                profileImage = doc.getString("profileImage") ?: "",
+                bannerImage = doc.getString("bannerImage") ?: "",
+                rating = doc.getDouble("rating") ?: 0.0,
+                reviewCount = doc.getLong("reviewCount")?.toInt() ?: 0
             )
         }
         Result.success(list)
     } catch (e: Exception) { Result.failure(e) }
 
-    override suspend fun updateProfileField(field: String, value: Any): Result<Unit> = try {
+    override suspend fun updateUserProfile(data: Map<String, Any>): Result<Unit> = try {
         val userId = auth.currentUser?.uid ?: throw Exception("Sin sesión")
-        db.collection("users").document(userId).update(field, value).await()
+        db.collection("users").document(userId).update(data).await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 
-    override suspend fun updateMultipleFields(data: Map<String, Any>): Result<Unit> = try {
+    override suspend fun updateCompanyProfile(data: Map<String, Any>): Result<Unit> = try {
         val userId = auth.currentUser?.uid ?: throw Exception("Sin sesión")
-        db.collection("users").document(userId).update(data).await()
+        // set con merge=true crea el doc si no existe (importante para el primer setup)
+        db.collection("company_profiles").document(userId).set(data, com.google.firebase.firestore.SetOptions.merge()).await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun deleteAccount(): Result<Unit> = try {
         val user = auth.currentUser ?: throw Exception("Sin sesión")
         db.collection("users").document(user.uid).delete().await()
+        db.collection("company_profiles").document(user.uid).delete().await()
         user.delete().await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }

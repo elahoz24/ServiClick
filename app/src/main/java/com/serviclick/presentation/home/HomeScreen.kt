@@ -19,7 +19,11 @@ import com.serviclick.ui.theme.*
 data class BottomNavItem(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onLogout: () -> Unit) {
+fun HomeScreen(
+    viewModel: HomeViewModel = hiltViewModel(),
+    onNavigateToCompany: (String) -> Unit, // <-- AÑADIDO AQUI
+    onLogout: () -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
@@ -38,13 +42,13 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onLogout: () -> Unit)
             HomeState.LOADING -> CircularProgressIndicator(color = SunsetOrange)
             HomeState.NEEDS_CLIENT_INFO -> ClientSetupSection(viewModel)
             HomeState.NEEDS_COMPANY_INFO -> CompanySetupSection(viewModel)
-            HomeState.DASHBOARD -> DashboardSection(viewModel, onLogout)
+            HomeState.DASHBOARD -> DashboardSection(viewModel, onNavigateToCompany, onLogout) // <-- PASADO AQUI
         }
     }
 }
 
 @Composable
-fun DashboardSection(viewModel: HomeViewModel, onLogout: () -> Unit) {
+fun DashboardSection(viewModel: HomeViewModel, onNavigateToCompany: (String) -> Unit, onLogout: () -> Unit) {
     val role by viewModel.userRole.collectAsState()
     var currentTab by remember { mutableStateOf(0) }
 
@@ -72,7 +76,7 @@ fun DashboardSection(viewModel: HomeViewModel, onLogout: () -> Unit) {
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (currentTab) {
-                0 -> if(role == "cliente") ClientHomeTab(viewModel) else PlaceholderScreen("Solicitudes")
+                0 -> if(role == "cliente") ClientHomeTab(viewModel, onNavigateToCompany) else PlaceholderScreen("Solicitudes") // <-- PASADO AQUI
                 3 -> if (role == "cliente") ClientAccountTab(viewModel, onLogout) else CompanyProfileTab(viewModel)
                 4 -> if (role == "empresa") SettingsTab(viewModel, onLogout)
                 else -> PlaceholderScreen(tabs[currentTab].title)

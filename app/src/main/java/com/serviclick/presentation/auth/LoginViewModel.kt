@@ -2,20 +2,21 @@ package com.serviclick.presentation.auth
 
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.google.firebase.FirebaseNetworkException
+import androidx.lifecycle.viewModelScope
+import com.serviclick.domain.use_case.LoginUseCase
+import com.serviclick.domain.use_case.ResetPasswordUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class LoginViewModel @Inject constructor() : ViewModel() {
-
-    private val auth = FirebaseAuth.getInstance()
+class LoginViewModel @Inject constructor(
+    private val loginUseCase: LoginUseCase,
+    private val resetPasswordUseCase: ResetPasswordUseCase
+) : ViewModel() {
 
     private val _email = MutableStateFlow("")
     val email: StateFlow<String> = _email.asStateFlow()
@@ -49,15 +50,15 @@ class LoginViewModel @Inject constructor() : ViewModel() {
         _errorMessage.value = null
         _resetMessage.value = null
 
-        auth.signInWithEmailAndPassword(_email.value, _password.value)
-            .addOnCompleteListener { task ->
+        viewModelScope.launch {
+            loginUseCase(_email.value, _password.value).onSuccess {
                 _isLoading.value = false
-                if (task.isSuccessful) {
-                    _loginSuccess.value = true
-                } else {
-                    _errorMessage.value = getTranslatedErrorMessage(task.exception)
-                }
+                _loginSuccess.value = true
+            }.onFailure { error ->
+                _isLoading.value = false
+                _errorMessage.value = error.message
             }
+        }
     }
 
     fun onResetPassword(emailToReset: String) {
@@ -70,15 +71,15 @@ class LoginViewModel @Inject constructor() : ViewModel() {
         _errorMessage.value = null
         _resetMessage.value = null
 
-        auth.sendPasswordResetEmail(emailToReset.trim())
-            .addOnCompleteListener { task ->
+        viewModelScope.launch {
+            resetPasswordUseCase(emailToReset.trim()).onSuccess {
                 _isLoading.value = false
-                if (task.isSuccessful) {
-                    _resetMessage.value = "Se ha enviado un enlace a tu correo. Revisa también la carpeta de Spam."
-                } else {
-                    _errorMessage.value = getTranslatedErrorMessage(task.exception)
-                }
+                _resetMessage.value = "Se ha enviado un enlace a tu correo. Revisa también la carpeta de Spam."
+            }.onFailure { error ->
+                _isLoading.value = false
+                _errorMessage.value = error.message
             }
+        }
     }
 
     fun clearMessages() {
@@ -88,13 +89,4 @@ class LoginViewModel @Inject constructor() : ViewModel() {
 
     private fun isValidEmail(email: String): Boolean = Patterns.EMAIL_ADDRESS.matcher(email).matches()
     private fun isValidPassword(password: String): Boolean = password.length >= 6
-
-    private fun getTranslatedErrorMessage(exception: Exception?): String {
-        return when (exception) {
-            is FirebaseAuthInvalidUserException -> "No existe ninguna cuenta registrada con este correo."
-            is FirebaseAuthInvalidCredentialsException -> "El correo o la contraseña son incorrectos."
-            is FirebaseNetworkException -> "No hay conexión a internet. Revisa tu red."
-            else -> "Se ha producido un error inesperado. Inténtalo de nuevo."
-        }
-    }
 }

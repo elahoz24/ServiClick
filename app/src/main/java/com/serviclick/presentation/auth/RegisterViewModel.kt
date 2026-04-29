@@ -2,22 +2,19 @@ package com.serviclick.presentation.auth
 
 import android.util.Patterns
 import androidx.lifecycle.ViewModel
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthUserCollisionException
-import com.google.firebase.auth.FirebaseAuthWeakPasswordException
-import com.google.firebase.firestore.FirebaseFirestore
+import androidx.lifecycle.viewModelScope
+import com.serviclick.domain.use_case.RegisterUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class RegisterViewModel @Inject constructor() : ViewModel() {
-
-    private val auth = FirebaseAuth.getInstance()
-    private val db = FirebaseFirestore.getInstance()
+class RegisterViewModel @Inject constructor(
+    private val registerUseCase: RegisterUseCase
+) : ViewModel() {
 
     private val _email = MutableStateFlow("")
     val email: StateFlow<String> = _email.asStateFlow()
@@ -61,43 +58,17 @@ class RegisterViewModel @Inject constructor() : ViewModel() {
         _isLoading.value = true
         _errorMessage.value = null
 
-        auth.createUserWithEmailAndPassword(_email.value, _password.value)
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val userId = task.result?.user?.uid
-                    if (userId != null) {
-                        val userMap = hashMapOf(
-                            "email" to _email.value,
-                            "role" to _role.value,
-                            "createdAt" to System.currentTimeMillis()
-                        )
-
-                        db.collection("users").document(userId).set(userMap)
-                            .addOnSuccessListener {
-                                _isLoading.value = false
-                                _registerSuccess.value = true
-                            }
-                            .addOnFailureListener { e ->
-                                _isLoading.value = false
-                                _errorMessage.value = "Error al crear perfil en base de datos: ${e.message}"
-                            }
-                    }
-                } else {
-                    _isLoading.value = false
-                    _errorMessage.value = getTranslatedErrorMessage(task.exception)
-                }
+        viewModelScope.launch {
+            registerUseCase(_email.value, _password.value, _role.value).onSuccess {
+                _isLoading.value = false
+                _registerSuccess.value = true
+            }.onFailure { error ->
+                _isLoading.value = false
+                _errorMessage.value = error.message
             }
+        }
     }
 
     private fun isValidEmail(email: String): Boolean = Patterns.EMAIL_ADDRESS.matcher(email).matches()
     private fun isValidPassword(password: String): Boolean = password.length >= 6
-
-    private fun getTranslatedErrorMessage(exception: Exception?): String {
-        return when (exception) {
-            is FirebaseAuthWeakPasswordException -> "La contraseña debe tener al menos 6 caracteres."
-            is FirebaseAuthInvalidCredentialsException -> "El formato del correo electrónico no es válido."
-            is FirebaseAuthUserCollisionException -> "Ya existe una cuenta con este correo electrónico."
-            else -> "Se ha producido un error inesperado. Inténtalo de nuevo."
-        }
-    }
 }

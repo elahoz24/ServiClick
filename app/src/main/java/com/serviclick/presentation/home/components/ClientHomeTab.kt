@@ -27,12 +27,11 @@ import com.serviclick.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClientHomeTab(viewModel: HomeViewModel) {
+fun ClientHomeTab(viewModel: HomeViewModel, onNavigateToCompany: (String) -> Unit) { // <-- NUEVO PARAMETRO
     val companies by viewModel.companiesList.collectAsState()
     val isLoading by viewModel.isLoadingCompanies.collectAsState()
     val city by viewModel.savedCity.collectAsState()
 
-    // Estado para el filtro de categorías
     var selectedCategoryFilter by remember { mutableStateOf("Todas") }
     val filterCategories = listOf("Todas") + viewModel.categories
 
@@ -43,8 +42,6 @@ fun ClientHomeTab(viewModel: HomeViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize().background(CreamBackground)) {
-
-        // --- CABECERA ---
         Box(modifier = Modifier.fillMaxWidth().background(BeigeSurface).padding(24.dp)) {
             Column {
                 Text("Servicios en", style = MaterialTheme.typography.labelMedium, color = ForestGreen.copy(0.6f))
@@ -56,44 +53,26 @@ fun ClientHomeTab(viewModel: HomeViewModel) {
             }
         }
 
-        // --- FILTROS (Chips) ---
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        LazyRow(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filterCategories) { category ->
                 FilterChip(
                     selected = selectedCategoryFilter == category,
                     onClick = { selectedCategoryFilter = category },
                     label = { Text(category) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = SunsetOrange,
-                        selectedLabelColor = CreamBackground,
-                        containerColor = BeigeSurface,
-                        labelColor = ForestGreen
-                    ),
-                    border = null,
-                    shape = RoundedCornerShape(16.dp)
+                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = SunsetOrange, selectedLabelColor = CreamBackground, containerColor = BeigeSurface, labelColor = ForestGreen),
+                    border = null, shape = RoundedCornerShape(16.dp)
                 )
             }
         }
 
-        // --- LISTADO ---
         if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = SunsetOrange)
-            }
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = SunsetOrange) }
         } else if (filteredCompanies.isEmpty()) {
             EmptyCompaniesView()
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 items(filteredCompanies) { company ->
-                    CompanyCard(company = company)
+                    CompanyCard(company = company, onClick = { onNavigateToCompany(company.id) }) // <-- CLICK
                 }
             }
         }
@@ -101,43 +80,27 @@ fun ClientHomeTab(viewModel: HomeViewModel) {
 }
 
 @Composable
-fun CompanyCard(company: CompanyProfile) {
+fun CompanyCard(company: CompanyProfile, onClick: () -> Unit) { // <-- NUEVO PARAMETRO
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { /* Navegar al detalle */ },
+        modifier = Modifier.fillMaxWidth().clickable { onClick() }, // <-- CLICK
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(2.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column {
-            // Banner
             Box(modifier = Modifier.fillMaxWidth().height(100.dp).background(BeigeSurface)) {
-                if (company.bannerImage.isNotEmpty()) {
-                    Base64Image(company.bannerImage, Modifier.fillMaxSize())
-                }
-                Surface(
-                    color = SunsetOrange,
-                    shape = RoundedCornerShape(bottomStart = 8.dp),
-                    modifier = Modifier.align(Alignment.TopEnd)
-                ) {
+                if (company.bannerImage.isNotEmpty()) Base64Image(company.bannerImage, Modifier.fillMaxSize())
+                Surface(color = SunsetOrange, shape = RoundedCornerShape(bottomStart = 8.dp), modifier = Modifier.align(Alignment.TopEnd)) {
                     Text(company.category, color = CreamBackground, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                 }
             }
 
-            // Info Row
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier.size(54.dp).offset(y = (-25).dp),
-                    shape = CircleShape, color = CreamBackground, shadowElevation = 4.dp
-                ) {
-                    if (company.profileImage.isNotEmpty()) {
-                        Base64Image(company.profileImage, Modifier.fillMaxSize().clip(CircleShape))
-                    } else {
-                        Icon(Icons.Default.Person, null, tint = SunsetOrange, modifier = Modifier.padding(10.dp))
-                    }
+                Surface(modifier = Modifier.size(54.dp).offset(y = (-25).dp), shape = CircleShape, color = CreamBackground, shadowElevation = 4.dp) {
+                    if (company.profileImage.isNotEmpty()) Base64Image(company.profileImage, Modifier.fillMaxSize().clip(CircleShape))
+                    else Icon(Icons.Default.Person, null, tint = SunsetOrange, modifier = Modifier.padding(10.dp))
                 }
-
                 Spacer(modifier = Modifier.width(12.dp))
-
                 Column(modifier = Modifier.weight(1f).offset(y = (-5).dp)) {
                     Text(company.name, style = MaterialTheme.typography.titleMedium, color = ForestGreen, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(company.description.ifEmpty { "Profesional de confianza en ServiClick." }, style = MaterialTheme.typography.bodySmall, color = ForestGreen.copy(0.7f), maxLines = 2, overflow = TextOverflow.Ellipsis)

@@ -13,11 +13,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
+import com.serviclick.core.navigation.CompanyDetailDestination
 import com.serviclick.core.navigation.HomeDestination
 import com.serviclick.core.navigation.LoginDestination
 import com.serviclick.core.navigation.RegisterDestination
 import com.serviclick.presentation.auth.LoginScreen
 import com.serviclick.presentation.auth.RegisterScreen
+import com.serviclick.presentation.company_detail.CompanyDetailScreen
 import com.serviclick.presentation.home.HomeScreen
 import com.serviclick.ui.theme.ServiClickTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -80,10 +82,22 @@ fun ServiClickApp() {
         }
         composable<HomeDestination> {
             HomeScreen(
+                onNavigateToCompany = { companyId ->
+                    navController.navigate(CompanyDetailDestination(companyId))
+                },
                 onLogout = {
                     navController.navigate(LoginDestination) {
                         popUpTo(HomeDestination) { inclusive = true }
                     }
+                }
+            )
+        }
+
+        // NUEVA PANTALLA
+        composable<CompanyDetailDestination> {
+            CompanyDetailScreen(
+                onNavigateBack = {
+                    navController.popBackStack()
                 }
             )
         }

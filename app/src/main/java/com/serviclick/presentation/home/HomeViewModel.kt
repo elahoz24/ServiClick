@@ -4,9 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.serviclick.domain.model.CompanyProfile
 import com.serviclick.domain.repository.UserRepository
-import com.serviclick.domain.use_case.GetCompaniesUseCase
-import com.serviclick.domain.use_case.GetUserProfileUseCase
-import com.serviclick.domain.use_case.UpdateProfileUseCase
+import com.serviclick.domain.use_case.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +18,9 @@ enum class HomeState { LOADING, NEEDS_CLIENT_INFO, NEEDS_COMPANY_INFO, DASHBOARD
 class HomeViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val getCompaniesUseCase: GetCompaniesUseCase,
+    private val getCompanyByIdUseCase: GetCompanyByIdUseCase,
     private val updateProfileUseCase: UpdateProfileUseCase,
+    private val updateCompanyProfileUseCase: UpdateCompanyProfileUseCase,
     private val repository: UserRepository
 ) : ViewModel() {
 
@@ -48,20 +48,29 @@ class HomeViewModel @Inject constructor(
     private val _savedAddress = MutableStateFlow("")
     val savedAddress: StateFlow<String> = _savedAddress.asStateFlow()
 
+    private val _profileImage = MutableStateFlow("")
+    val profileImage: StateFlow<String> = _profileImage.asStateFlow()
+
+    private val _savedLanguage = MutableStateFlow("Español")
+    val savedLanguage: StateFlow<String> = _savedLanguage.asStateFlow()
+
+    private val _companyName = MutableStateFlow("")
+    val companyName: StateFlow<String> = _companyName.asStateFlow()
+
     private val _savedCategory = MutableStateFlow("")
     val savedCategory: StateFlow<String> = _savedCategory.asStateFlow()
 
     private val _savedDescription = MutableStateFlow("")
     val savedDescription: StateFlow<String> = _savedDescription.asStateFlow()
 
-    private val _profileImage = MutableStateFlow("")
-    val profileImage: StateFlow<String> = _profileImage.asStateFlow()
-
     private val _bannerImage = MutableStateFlow("")
     val bannerImage: StateFlow<String> = _bannerImage.asStateFlow()
 
-    private val _savedLanguage = MutableStateFlow("Español")
-    val savedLanguage: StateFlow<String> = _savedLanguage.asStateFlow()
+    private val _rating = MutableStateFlow(0.0)
+    val rating: StateFlow<Double> = _rating.asStateFlow()
+
+    private val _reviewCount = MutableStateFlow(0)
+    val reviewCount: StateFlow<Int> = _reviewCount.asStateFlow()
 
     private val _companiesList = MutableStateFlow<List<CompanyProfile>>(emptyList())
     val companiesList: StateFlow<List<CompanyProfile>> = _companiesList.asStateFlow()
@@ -86,6 +95,9 @@ class HomeViewModel @Inject constructor(
     private val _selectedCity = MutableStateFlow("")
     val selectedCity: StateFlow<String> = _selectedCity.asStateFlow()
 
+    private val _setupAddress = MutableStateFlow("")
+    val setupAddress: StateFlow<String> = _setupAddress.asStateFlow()
+
     private val _selectedCategory = MutableStateFlow("")
     val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
 
@@ -93,44 +105,55 @@ class HomeViewModel @Inject constructor(
     val description: StateFlow<String> = _description.asStateFlow()
 
     init {
-        fetchUserProfile()
+        // La primera vez que arranca la app SÍ mostramos la rueda de carga
+        fetchUserProfile(showLoading = true)
     }
 
-    fun clearErrorMessage() {
-        _errorMessage.value = null
-    }
+    fun clearErrorMessage() { _errorMessage.value = null }
 
-    private fun fetchUserProfile() {
+    // NUEVO: Permite recargar los datos sin que salte la pantalla de carga (para evitar que se cierren los diálogos)
+    private fun fetchUserProfile(showLoading: Boolean = true) {
         viewModelScope.launch {
-            _uiState.value = HomeState.LOADING
-            getUserProfileUseCase().onSuccess { profile ->
-                _userRole.value = profile.role
-                _savedCity.value = profile.city
-                _savedAddress.value = profile.address
-                _savedLanguage.value = profile.language
-                _userName.value = if (profile.role == "empresa") profile.companyName else profile.name
-                _userPhone.value = profile.phone
-                _savedCategory.value = profile.category
-                _savedDescription.value = profile.description
-                _profileImage.value = profile.profileImage
-                _bannerImage.value = profile.bannerImage
+            if (showLoading) {
+                _uiState.value = HomeState.LOADING
+            }
+            getUserProfileUseCase().onSuccess { user ->
+                _userRole.value = user.role
+                _userName.value = user.name
+                _userPhone.value = user.phone
+                _savedCity.value = user.city
+                _savedAddress.value = user.address
+                _profileImage.value = user.profileImage
+                _savedLanguage.value = user.language
 
-                if (profile.role == "cliente") {
-                    if (profile.city.isEmpty() || profile.name.isEmpty() || profile.phone.isEmpty()) {
+                if (user.role == "cliente") {
+                    if (user.city.isEmpty() || user.name.isEmpty()) {
                         _uiState.value = HomeState.NEEDS_CLIENT_INFO
                     } else {
                         _uiState.value = HomeState.DASHBOARD
-                        fetchCompaniesInMyCity(profile.city)
+                        fetchCompaniesInMyCity(user.city)
                     }
                 } else {
-                    if (profile.companyName.isEmpty() || profile.city.isEmpty()) {
+                    getCompanyByIdUseCase(user.id).onSuccess { comp ->
+                        _companyName.value = comp.name
+                        _savedCategory.value = comp.category
+                        _savedDescription.value = comp.description
+                        _bannerImage.value = comp.bannerImage
+                        _rating.value = comp.rating
+                        _reviewCount.value = comp.reviewCount
+                        if (comp.profileImage.isNotEmpty()) {
+                            _profileImage.value = comp.profileImage
+                        }
+                    }
+
+                    if (_companyName.value.isEmpty() || user.city.isEmpty()) {
                         _uiState.value = HomeState.NEEDS_COMPANY_INFO
                     } else {
                         _uiState.value = HomeState.DASHBOARD
                     }
                 }
             }.onFailure {
-                _errorMessage.value = it.message ?: "Error al cargar el perfil"
+                _errorMessage.value = it.message
                 _uiState.value = HomeState.DASHBOARD
             }
         }
@@ -139,117 +162,111 @@ class HomeViewModel @Inject constructor(
     fun fetchCompaniesInMyCity(city: String) {
         viewModelScope.launch {
             _isLoadingCompanies.value = true
-            getCompaniesUseCase(city).onSuccess { list ->
-                _companiesList.value = list
+            getCompaniesUseCase(city).onSuccess {
+                _companiesList.value = it
                 _isLoadingCompanies.value = false
-            }.onFailure {
-                _isLoadingCompanies.value = false
-                _errorMessage.value = "Error al buscar profesionales en $city"
-            }
+            }.onFailure { _isLoadingCompanies.value = false }
         }
     }
 
-    fun updateProfileField(field: String, value: String) {
+    fun updateAccountField(field: String, value: String) {
         viewModelScope.launch {
-            updateProfileUseCase.updateField(field, value).onSuccess {
-                fetchUserProfile()
-            }.onFailure {
-                _errorMessage.value = "No se pudo actualizar el campo $field"
-            }
+            // Recargamos de forma silenciosa para que la UI no parpadee
+            updateProfileUseCase.updateField(field, value).onSuccess { fetchUserProfile(showLoading = false) }
+        }
+    }
+
+    fun updateCompanyField(field: String, value: String) {
+        viewModelScope.launch {
+            // Recargamos de forma silenciosa para que la UI no parpadee
+            updateCompanyProfileUseCase.updateField(field, value).onSuccess { fetchUserProfile(showLoading = false) }
         }
     }
 
     fun saveClientProfile() {
+        val phoneNum = _setupPhone.value.replace(" ", "")
+        if (_setupName.value.trim().isEmpty() || phoneNum.length < 9 || _selectedCity.value.isEmpty() || _setupAddress.value.trim().isEmpty()) {
+            _errorMessage.value = "Por favor, rellena todos los campos. El teléfono debe tener al menos 9 números."
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = HomeState.LOADING
             val fullPhone = "${_setupPhonePrefix.value.substringBefore(" ")} ${_setupPhone.value.trim()}"
             val data = mapOf(
                 "name" to _setupName.value.trim(),
                 "phone" to fullPhone,
-                "city" to _selectedCity.value
+                "city" to _selectedCity.value,
+                "address" to _setupAddress.value.trim()
             )
-            updateProfileUseCase.updateMultiple(data).onSuccess {
-                fetchUserProfile()
+            updateProfileUseCase.updateAccount(data).onSuccess {
+                fetchUserProfile(showLoading = false)
             }.onFailure {
                 _uiState.value = HomeState.NEEDS_CLIENT_INFO
-                _errorMessage.value = "Error al guardar el perfil: ${it.message}"
+                _errorMessage.value = it.message
             }
         }
     }
 
     fun saveCompanyProfile() {
+        val phoneNum = _setupPhone.value.replace(" ", "")
+        if (_setupName.value.trim().isEmpty() || phoneNum.length < 9 || _selectedCity.value.isEmpty() || _selectedCategory.value.isEmpty() || _description.value.trim().isEmpty() || _setupAddress.value.trim().isEmpty()) {
+            _errorMessage.value = "Por favor, rellena todos los datos correctamente. El teléfono debe tener al menos 9 números."
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = HomeState.LOADING
             val fullPhone = "${_setupPhonePrefix.value.substringBefore(" ")} ${_setupPhone.value.trim()}"
-            val data = mapOf(
-                "companyName" to _setupName.value.trim(),
+
+            updateProfileUseCase.updateAccount(mapOf(
                 "phone" to fullPhone,
                 "city" to _selectedCity.value,
+                "address" to _setupAddress.value.trim()
+            ))
+
+            val compData = mapOf(
+                "name" to _setupName.value.trim(),
                 "category" to _selectedCategory.value,
-                "description" to _description.value.trim()
+                "description" to _description.value.trim(),
+                "city" to _selectedCity.value,
+                "address" to _setupAddress.value.trim(),
+                "profileImage" to "",
+                "bannerImage" to "",
+                "rating" to 0.0,
+                "reviewCount" to 0
             )
-            updateProfileUseCase.updateMultiple(data).onSuccess {
-                fetchUserProfile()
+
+            updateCompanyProfileUseCase(compData).onSuccess {
+                fetchUserProfile(showLoading = false)
             }.onFailure {
                 _uiState.value = HomeState.NEEDS_COMPANY_INFO
-                _errorMessage.value = "Error al guardar el perfil de empresa: ${it.message}"
+                _errorMessage.value = it.message
             }
         }
     }
 
     fun onSetupNameChanged(v: String) {
-        if (v.matches(Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]*$")) && v.length <= 40) {
-            _setupName.value = v
-        }
+        if (v.matches(Regex("^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]*$")) && v.length <= 40) _setupName.value = v
     }
-
     fun onSetupCompanyNameChanged(v: String) {
-        if (v.matches(Regex("^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s&'-]*$")) && v.length <= 50) {
-            _setupName.value = v
-        }
+        if (v.matches(Regex("^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s&'-]*$")) && v.length <= 50) _setupName.value = v
     }
-
     fun onSetupPhoneChanged(v: String) {
-        if (v.all { it.isDigit() } && v.length <= 15) {
-            _setupPhone.value = v
-        }
+        if (v.replace(" ", "").all { it.isDigit() } && v.length <= 15) _setupPhone.value = v
     }
+    fun onCityChanged(v: String) { _selectedCity.value = v }
+    fun onCategoryChanged(v: String) { _selectedCategory.value = v }
+    fun onDescriptionChanged(v: String) { if (v.length <= 300) _description.value = v }
+    fun onSetupPhonePrefixChanged(v: String) { _setupPhonePrefix.value = v }
+    fun onSetupAddressChanged(v: String) { _setupAddress.value = v }
 
-    fun onCityChanged(v: String) {
-        _selectedCity.value = v
-    }
-
-    fun onCategoryChanged(v: String) {
-        _selectedCategory.value = v
-    }
-
-    fun onDescriptionChanged(v: String) {
-        if (v.length <= 300) {
-            _description.value = v
-        }
-    }
-
-    fun onSetupPhonePrefixChanged(v: String) {
-        _setupPhonePrefix.value = v
-    }
-
-    fun logout() {
-        repository.logout()
-    }
-
-    fun sendPasswordReset() {
-        repository.sendPasswordReset()
-    }
-
+    fun logout() { repository.logout() }
+    fun sendPasswordReset() { repository.sendPasswordReset() }
     fun deleteAccount(onComplete: () -> Unit) {
         viewModelScope.launch {
             _uiState.value = HomeState.LOADING
-            repository.deleteAccount().onSuccess {
-                onComplete()
-            }.onFailure {
-                _uiState.value = HomeState.DASHBOARD
-                _errorMessage.value = it.message
-            }
+            repository.deleteAccount().onSuccess { onComplete() }
         }
     }
 }

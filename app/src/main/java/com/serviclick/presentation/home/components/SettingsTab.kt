@@ -23,16 +23,40 @@ fun SettingsTab(viewModel: HomeViewModel, onLogout: () -> Unit) {
     Column(modifier = Modifier.fillMaxSize().background(CreamBackground).padding(24.dp).verticalScroll(rememberScrollState())) {
         Text("Configuración", style = MaterialTheme.typography.headlineMedium, color = ForestGreen, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(32.dp))
+
         SectionTitle("APP")
         Box {
             SettingsItem("Idioma", language, Icons.Default.Language) { expandedLang = true }
-            DropdownMenu(expanded = expandedLang, onDismissRequest = { expandedLang = false }) {
-                viewModel.languages.forEach { l -> DropdownMenuItem(text = { Text(l) }, onClick = { viewModel.updateProfileField("language", l); expandedLang = false }) }
+            DropdownMenu(expanded = expandedLang, onDismissRequest = { expandedLang = false }, modifier = Modifier.background(BeigeSurface)) {
+                viewModel.languages.forEach { l ->
+                    DropdownMenuItem(
+                        text = { Text(l, color = ForestGreen) },
+                        onClick = {
+                            // CORRECCIÓN: Llamamos a updateAccountField
+                            viewModel.updateAccountField("language", l)
+                            expandedLang = false
+                        }
+                    )
+                }
             }
         }
+
         SettingsItem("Resetear contraseña", "Enviar email", Icons.Default.Lock) { viewModel.sendPasswordReset() }
+
         Spacer(modifier = Modifier.height(40.dp))
-        Button(onClick = { viewModel.logout(); onLogout() }, modifier = Modifier.fillMaxWidth().height(54.dp), colors = ButtonDefaults.buttonColors(containerColor = BeigeSurface)) { Text("CERRAR SESIÓN", color = ForestGreen, fontWeight = FontWeight.Bold) }
-        TextButton(onClick = { viewModel.deleteAccount(onLogout) }, modifier = Modifier.fillMaxWidth()) { Text("Eliminar cuenta", color = Color.Red) }
+
+        Button(
+            onClick = { viewModel.logout(); onLogout() },
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = BeigeSurface)
+        ) {
+            Text("CERRAR SESIÓN", color = ForestGreen, fontWeight = FontWeight.Bold)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(onClick = { viewModel.deleteAccount(onLogout) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Eliminar cuenta", color = Color.Red, fontWeight = FontWeight.SemiBold)
+        }
     }
 }

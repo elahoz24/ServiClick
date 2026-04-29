@@ -21,34 +21,49 @@ fun ClientAccountTab(viewModel: HomeViewModel, onLogout: () -> Unit) {
     val phone by viewModel.userPhone.collectAsState()
     val city by viewModel.savedCity.collectAsState()
     val address by viewModel.savedAddress.collectAsState()
-    val language by viewModel.savedLanguage.collectAsState()
 
     var showEditName by remember { mutableStateOf(false) }
     var showEditPhone by remember { mutableStateOf(false) }
     var showEditAddress by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
-    var expandedLang by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxSize().background(CreamBackground).padding(24.dp).verticalScroll(rememberScrollState())) {
         Text("Mi Cuenta", style = MaterialTheme.typography.headlineMedium, color = ForestGreen, fontWeight = FontWeight.Bold)
         Text(email, color = ForestGreen.copy(0.6f))
+
         Spacer(modifier = Modifier.height(32.dp))
+
         SectionTitle("DATOS PERSONALES")
-        SettingsItem("Nombre", name, Icons.Default.AccountCircle) { showEditName = true }
-        SettingsItem("Teléfono", phone, Icons.Default.Phone) { showEditPhone = true }
+        SettingsItem("Nombre completo", name.ifEmpty { "Configurar" }, Icons.Default.AccountCircle) { showEditName = true }
+        SettingsItem("Teléfono móvil", phone.ifEmpty { "Configurar" }, Icons.Default.Phone) { showEditPhone = true }
+
         Spacer(modifier = Modifier.height(24.dp))
-        SectionTitle("DIRECCIÓN")
+        SectionTitle("DIRECCIÓN Y PAGOS")
         Box {
-            SettingsItem("Ciudad", city, Icons.Default.Search) { expandedCity = true }
-            DropdownMenu(expanded = expandedCity, onDismissRequest = { expandedCity = false }) {
-                viewModel.provinces.forEach { p -> DropdownMenuItem(text = { Text(p) }, onClick = { viewModel.updateProfileField("city", p); expandedCity = false }) }
+            SettingsItem("Ciudad (Para búsquedas)", city.ifEmpty { "Configurar" }, Icons.Default.Search) { expandedCity = true }
+            DropdownMenu(expanded = expandedCity, onDismissRequest = { expandedCity = false }, modifier = Modifier.background(BeigeSurface)) {
+                viewModel.provinces.forEach { p ->
+                    DropdownMenuItem(
+                        text = { Text(p, color = ForestGreen) },
+                        onClick = {
+                            // AHORA LLAMA A LA FUNCIÓN CORRECTA
+                            viewModel.updateAccountField("city", p)
+                            expandedCity = false
+                        }
+                    )
+                }
             }
         }
-        SettingsItem("Calle y portal", address, Icons.Default.LocationOn) { showEditAddress = true }
+        SettingsItem("Dirección exacta", address.ifEmpty { "Añadir calle, portal, piso..." }, Icons.Default.LocationOn) { showEditAddress = true }
+
         Spacer(modifier = Modifier.height(40.dp))
-        Button(onClick = { viewModel.logout(); onLogout() }, modifier = Modifier.fillMaxWidth().height(54.dp), colors = ButtonDefaults.buttonColors(containerColor = BeigeSurface)) { Text("CERRAR SESIÓN", color = ForestGreen, fontWeight = FontWeight.Bold) }
+        Button(onClick = { viewModel.logout(); onLogout() }, modifier = Modifier.fillMaxWidth().height(54.dp), colors = ButtonDefaults.buttonColors(containerColor = BeigeSurface)) {
+            Text("CERRAR SESIÓN", color = ForestGreen, fontWeight = FontWeight.Bold)
+        }
     }
-    if (showEditName) EditNameDialog("Editar Nombre", name, false, { showEditName = false }) { viewModel.updateProfileField("name", it) }
-    if (showEditPhone) EditPhoneDialog(phone, viewModel.phonePrefixes, { showEditPhone = false }) { viewModel.updateProfileField("phone", it) }
-    if (showEditAddress) EditAddressDialog(address, { showEditAddress = false }) { viewModel.updateProfileField("address", it) }
+
+    // CORREGIDO: Llaman a updateAccountField en lugar del antiguo updateProfileField
+    if (showEditName) EditNameDialog("Editar Nombre", name, false, { showEditName = false }) { viewModel.updateAccountField("name", it) }
+    if (showEditPhone) EditPhoneDialog(phone, viewModel.phonePrefixes, { showEditPhone = false }) { viewModel.updateAccountField("phone", it) }
+    if (showEditAddress) EditAddressDialog(address, { showEditAddress = false }) { viewModel.updateAccountField("address", it) }
 }

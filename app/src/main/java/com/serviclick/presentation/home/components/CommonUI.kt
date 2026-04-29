@@ -14,7 +14,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -69,4 +68,20 @@ fun uriToBase64(context: Context, uri: Uri, maxImageSize: Float = 400f): String?
         scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
         Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
     } catch (e: Exception) { null }
+}
+
+// ¡NUEVO! Formateador inteligente de reseñas
+fun formatReviewCount(count: Int): String {
+    return when {
+        count >= 10000 -> "+10k"
+        count >= 5000 -> "+5k"
+        count >= 1000 -> "+1k"
+        count >= 500 -> "+500"
+        count >= 250 -> "+250"
+        count >= 100 -> "+100"
+        count >= 50 -> "+50"
+        count >= 10 -> "+10"
+        count > 0 -> count.toString()
+        else -> "0"
+    }
 }

@@ -8,6 +8,9 @@ object LoginDestination
 @Serializable
 object RegisterDestination
 
-// NUEVO DESTINO: La pantalla principal de la app
 @Serializable
 object HomeDestination
+
+// NUEVO: Destino para ver el perfil de una empresa. Exige su ID.
+@Serializable
+data class CompanyDetailDestination(val companyId: String)
