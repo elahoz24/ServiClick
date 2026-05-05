@@ -2,7 +2,9 @@ package com.serviclick.presentation.home.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,7 +37,6 @@ fun PhoneInputField(
     supportingText: @Composable (() -> Unit)? = null
 ) {
     var expandedPrefix by remember { mutableStateOf(false) }
-    // Alineación 'Top' para que si sale el mensaje de error debajo del teléfono, el prefijo no se mueva raro
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         ExposedDropdownMenuBox(expanded = expandedPrefix, onExpandedChange = { expandedPrefix = !expandedPrefix }, modifier = Modifier.weight(0.35f)) {
             OutlinedTextField(
@@ -46,7 +47,7 @@ fun PhoneInputField(
                 colors = getTextFieldColors(),
                 modifier = Modifier.menuAnchor().fillMaxWidth(),
                 singleLine = true,
-                supportingText = { if (isError) Text(" ") } // Mantiene la caja a la misma altura que el teléfono
+                supportingText = { if (isError) Text(" ") }
             )
             ExposedDropdownMenu(expanded = expandedPrefix, onDismissRequest = { expandedPrefix = false }, modifier = Modifier.background(BeigeSurface)) {
                 prefixes.forEach { option -> DropdownMenuItem(text = { Text(option, color = ForestGreen) }, onClick = { onPrefixChange(option); expandedPrefix = false }) }
@@ -201,6 +202,82 @@ fun EditDescriptionDialog(initialValue: String, onDismiss: () -> Unit, onSave: (
                 colors = ButtonDefaults.textButtonColors(contentColor = SunsetOrange, disabledContentColor = SunsetOrange.copy(alpha = 0.4f))
             ) {
                 Text("GUARDAR", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCELAR", color = ForestGreen.copy(0.6f)) }
+        }
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun EditHoursDialog(
+    currentHours: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (List<String>) -> Unit
+) {
+    // Generador automático de horas cada 15 minutos (de 08:00 a 20:45 + 21:00)
+    val allPossibleSlots = remember {
+        val slots = mutableListOf<String>()
+        for (hour in 8..20) {
+            listOf("00", "15", "30", "45").forEach { minute ->
+                slots.add("${hour.toString().padStart(2, '0')}:$minute")
+            }
+        }
+        slots.add("21:00")
+        slots
+    }
+
+    var tempSelectedHours by remember { mutableStateOf(currentHours) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BeigeSurface,
+        title = { Text("Configurar Horario", color = ForestGreen, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Selecciona los tramos (15 min) en los que estás disponible para recibir citas:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ForestGreen.copy(0.7f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Contenedor que restringe la altura y permite el Scroll
+                Box(modifier = Modifier.fillMaxHeight(0.6f)) {
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        allPossibleSlots.forEach { slot ->
+                            val isSelected = slot in tempSelectedHours
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    tempSelectedHours = if (isSelected) {
+                                        tempSelectedHours - slot
+                                    } else {
+                                        (tempSelectedHours + slot).sorted()
+                                    }
+                                },
+                                label = { Text(slot) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = SunsetOrange,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(tempSelectedHours); onDismiss() }) {
+                Text("GUARDAR", color = SunsetOrange, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {

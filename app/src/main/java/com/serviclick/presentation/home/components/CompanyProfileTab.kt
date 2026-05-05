@@ -159,10 +159,10 @@ fun EditProfileFullScreen(viewModel: HomeViewModel, onClose: () -> Unit) {
     val description by viewModel.savedDescription.collectAsState()
     val profileImage by viewModel.profileImage.collectAsState()
     val bannerImage by viewModel.bannerImage.collectAsState()
+    val workingHours by viewModel.workingHours.collectAsState()
 
     val context = LocalContext.current
 
-    // AQUÍ ESTABA EL ERROR: Ahora updateCompanyField sube el logo a la colección correcta
     val pLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let { uriToBase64(context, it, 400f)?.let { viewModel.updateCompanyField("profileImage", it) } } }
     val bLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { it?.let { uriToBase64(context, it, 800f)?.let { viewModel.updateCompanyField("bannerImage", it) } } }
 
@@ -170,6 +170,7 @@ fun EditProfileFullScreen(viewModel: HomeViewModel, onClose: () -> Unit) {
     var showEditPhone by remember { mutableStateOf(false) }
     var showEditAddress by remember { mutableStateOf(false) }
     var showEditDesc by remember { mutableStateOf(false) }
+    var showEditHours by remember { mutableStateOf(false) }
     var expandedCity by remember { mutableStateOf(false) }
     var expandedCat by remember { mutableStateOf(false) }
 
@@ -220,6 +221,10 @@ fun EditProfileFullScreen(viewModel: HomeViewModel, onClose: () -> Unit) {
                     }
                 }
                 SettingsItem("Descripción", if(description.length > 25) description.take(25)+"..." else description, Icons.Default.Edit) { showEditDesc = true }
+
+                // NUEVA SECCIÓN DE HORARIO
+                SettingsItem("Horario de atención", "${workingHours.size} horas activas", Icons.Default.DateRange) { showEditHours = true }
+
                 Spacer(modifier = Modifier.height(40.dp))
                 Button(onClick = onClose, modifier = Modifier.fillMaxWidth().height(54.dp), colors = ButtonDefaults.buttonColors(containerColor = SunsetOrange)) {
                     Text("FINALIZAR EDICIÓN", fontWeight = FontWeight.Bold)
@@ -239,4 +244,12 @@ fun EditProfileFullScreen(viewModel: HomeViewModel, onClose: () -> Unit) {
     }
 
     if (showEditDesc) EditDescriptionDialog(description, { showEditDesc = false }) { viewModel.updateCompanyField("description", it) }
+
+    if (showEditHours) {
+        EditHoursDialog(
+            currentHours = workingHours,
+            onDismiss = { showEditHours = false },
+            onSave = { viewModel.updateWorkingHours(it) }
+        )
+    }
 }

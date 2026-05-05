@@ -2,6 +2,7 @@ package com.serviclick.presentation.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.serviclick.domain.model.Appointment
 import com.serviclick.domain.model.CompanyProfile
 import com.serviclick.domain.repository.UserRepository
 import com.serviclick.domain.use_case.*
@@ -21,6 +22,10 @@ class HomeViewModel @Inject constructor(
     private val getCompanyByIdUseCase: GetCompanyByIdUseCase,
     private val updateProfileUseCase: UpdateProfileUseCase,
     private val updateCompanyProfileUseCase: UpdateCompanyProfileUseCase,
+    private val getCompanyAppointmentsUseCase: GetCompanyAppointmentsUseCase, // Inyectado para citas de la Empresa
+    private val getClientAppointmentsUseCase: GetClientAppointmentsUseCase,   // Inyectado para citas del Cliente
+    private val respondToAppointmentUseCase: RespondToAppointmentUseCase,     // Inyectado para dar presupuestos
+    private val updateAppointmentStatusUseCase: UpdateAppointmentStatusUseCase, // Inyectado para aceptar/rechazar
     private val repository: UserRepository
 ) : ViewModel() {
 
@@ -32,6 +37,9 @@ class HomeViewModel @Inject constructor(
 
     private val _userEmail = MutableStateFlow(repository.getCurrentUserEmail())
     val userEmail: StateFlow<String> = _userEmail.asStateFlow()
+
+    private val _userId = MutableStateFlow("")
+    val userId: StateFlow<String> = _userId.asStateFlow()
 
     private val _userRole = MutableStateFlow("")
     val userRole: StateFlow<String> = _userRole.asStateFlow()
@@ -72,11 +80,21 @@ class HomeViewModel @Inject constructor(
     private val _reviewCount = MutableStateFlow(0)
     val reviewCount: StateFlow<Int> = _reviewCount.asStateFlow()
 
+    private val _workingHours = MutableStateFlow<List<String>>(emptyList())
+    val workingHours: StateFlow<List<String>> = _workingHours.asStateFlow()
+
     private val _companiesList = MutableStateFlow<List<CompanyProfile>>(emptyList())
     val companiesList: StateFlow<List<CompanyProfile>> = _companiesList.asStateFlow()
 
     private val _isLoadingCompanies = MutableStateFlow(false)
     val isLoadingCompanies: StateFlow<Boolean> = _isLoadingCompanies.asStateFlow()
+
+    // === EL CORAZÓN DE LAS CITAS (AQUÍ ESTABA EL ERROR DE TIPO) ===
+    private val _companyAppointments = MutableStateFlow<List<Appointment>>(emptyList())
+    val companyAppointments: StateFlow<List<Appointment>> = _companyAppointments.asStateFlow()
+
+    private val _appointments = MutableStateFlow<List<Appointment>>(emptyList())
+    val appointments: StateFlow<List<Appointment>> = _appointments.asStateFlow()
 
     val provinces = listOf("A Coruña", "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz", "Baleares", "Barcelona", "Burgos", "Cáceres", "Cádiz", "Cantabria", "Castellón", "Ciudad Real", "Córdoba", "Cuenca", "Girona", "Granada", "Guadalajara", "Gipuzkoa", "Huelva", "Huesca", "Jaén", "La Rioja", "Las Palmas", "León", "Lérida", "Lugo", "Madrid", "Málaga", "Murcia", "Navarra", "Ourense", "Palencia", "Pontevedra", "Salamanca", "Segovia", "Sevilla", "Soria", "Tarragona", "Santa Cruz de Tenerife", "Teruel", "Toledo", "Valencia", "Valladolid", "Vizcaya", "Zamora", "Zaragoza", "Ceuta", "Melilla")
     val categories = listOf("Fontanería", "Electricidad", "Limpieza", "Reformas", "Cerrajería", "Pintura", "Carpintería", "Climatización", "Jardinería", "Mudanzas")
@@ -105,19 +123,16 @@ class HomeViewModel @Inject constructor(
     val description: StateFlow<String> = _description.asStateFlow()
 
     init {
-        // La primera vez que arranca la app SÍ mostramos la rueda de carga
         fetchUserProfile(showLoading = true)
     }
 
     fun clearErrorMessage() { _errorMessage.value = null }
 
-    // NUEVO: Permite recargar los datos sin que salte la pantalla de carga (para evitar que se cierren los diálogos)
     private fun fetchUserProfile(showLoading: Boolean = true) {
         viewModelScope.launch {
-            if (showLoading) {
-                _uiState.value = HomeState.LOADING
-            }
+            if (showLoading) _uiState.value = HomeState.LOADING
             getUserProfileUseCase().onSuccess { user ->
+                _userId.value = user.id
                 _userRole.value = user.role
                 _userName.value = user.name
                 _userPhone.value = user.phone
@@ -132,6 +147,7 @@ class HomeViewModel @Inject constructor(
                     } else {
                         _uiState.value = HomeState.DASHBOARD
                         fetchCompaniesInMyCity(user.city)
+                        fetchClientAppointments()
                     }
                 } else {
                     getCompanyByIdUseCase(user.id).onSuccess { comp ->
@@ -141,15 +157,15 @@ class HomeViewModel @Inject constructor(
                         _bannerImage.value = comp.bannerImage
                         _rating.value = comp.rating
                         _reviewCount.value = comp.reviewCount
-                        if (comp.profileImage.isNotEmpty()) {
-                            _profileImage.value = comp.profileImage
-                        }
+                        _workingHours.value = comp.workingHours
+                        if (comp.profileImage.isNotEmpty()) _profileImage.value = comp.profileImage
                     }
 
                     if (_companyName.value.isEmpty() || user.city.isEmpty()) {
                         _uiState.value = HomeState.NEEDS_COMPANY_INFO
                     } else {
                         _uiState.value = HomeState.DASHBOARD
+                        fetchCompanyAppointments()
                     }
                 }
             }.onFailure {
@@ -159,6 +175,50 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    // === FUNCIONES DE CITAS Y PRESUPUESTOS ===
+    fun fetchCompanyAppointments() {
+        val id = _userId.value
+        if (id.isEmpty()) return
+        viewModelScope.launch {
+            getCompanyAppointmentsUseCase(id).onSuccess { _companyAppointments.value = it }
+        }
+    }
+
+    fun fetchClientAppointments() {
+        val id = _userId.value
+        if (id.isEmpty()) return
+        viewModelScope.launch {
+            getClientAppointmentsUseCase(id).onSuccess { _appointments.value = it }
+        }
+    }
+
+    fun respondToRequest(appointmentId: String, price: Double, status: String) {
+        viewModelScope.launch {
+            _uiState.value = HomeState.LOADING
+            respondToAppointmentUseCase(appointmentId, price, status).onSuccess {
+                fetchCompanyAppointments()
+                _uiState.value = HomeState.DASHBOARD
+            }.onFailure {
+                _errorMessage.value = "Error al responder: ${it.message}"
+                _uiState.value = HomeState.DASHBOARD
+            }
+        }
+    }
+
+    fun updateAppointmentStatus(appointmentId: String, status: String) {
+        viewModelScope.launch {
+            _uiState.value = HomeState.LOADING
+            updateAppointmentStatusUseCase(appointmentId, status).onSuccess {
+                if (_userRole.value == "cliente") fetchClientAppointments() else fetchCompanyAppointments()
+                _uiState.value = HomeState.DASHBOARD
+            }.onFailure {
+                _errorMessage.value = it.message
+                _uiState.value = HomeState.DASHBOARD
+            }
+        }
+    }
+
+    // === FUNCIONES DE EMPRESA Y CONFIGURACIÓN ===
     fun fetchCompaniesInMyCity(city: String) {
         viewModelScope.launch {
             _isLoadingCompanies.value = true
@@ -171,15 +231,21 @@ class HomeViewModel @Inject constructor(
 
     fun updateAccountField(field: String, value: String) {
         viewModelScope.launch {
-            // Recargamos de forma silenciosa para que la UI no parpadee
             updateProfileUseCase.updateField(field, value).onSuccess { fetchUserProfile(showLoading = false) }
         }
     }
 
     fun updateCompanyField(field: String, value: String) {
         viewModelScope.launch {
-            // Recargamos de forma silenciosa para que la UI no parpadee
             updateCompanyProfileUseCase.updateField(field, value).onSuccess { fetchUserProfile(showLoading = false) }
+        }
+    }
+
+    fun updateWorkingHours(newList: List<String>) {
+        viewModelScope.launch {
+            updateCompanyProfileUseCase.updateField("workingHours", newList).onSuccess {
+                fetchUserProfile(showLoading = false)
+            }
         }
     }
 
@@ -234,7 +300,12 @@ class HomeViewModel @Inject constructor(
                 "profileImage" to "",
                 "bannerImage" to "",
                 "rating" to 0.0,
-                "reviewCount" to 0
+                "reviewCount" to 0,
+                "workingHours" to listOf(
+                    "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+                    "12:00", "12:30", "13:00", "16:00", "16:30", "17:00",
+                    "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
+                )
             )
 
             updateCompanyProfileUseCase(compData).onSuccess {

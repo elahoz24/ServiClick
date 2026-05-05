@@ -33,9 +33,11 @@ class UserRepositoryImpl @Inject constructor() : UserRepository {
         } else Result.failure(Exception("Usuario no encontrado"))
     } catch (e: Exception) { Result.failure(e) }
 
+    @Suppress("UNCHECKED_CAST")
     override suspend fun getCompanyProfile(id: String): Result<CompanyProfile> = try {
         val doc = db.collection("company_profiles").document(id).get().await()
         if (doc.exists()) {
+            val hours = doc.get("workingHours") as? List<String>
             Result.success(CompanyProfile(
                 id = doc.id,
                 name = doc.getString("name") ?: "",
@@ -46,14 +48,21 @@ class UserRepositoryImpl @Inject constructor() : UserRepository {
                 profileImage = doc.getString("profileImage") ?: "",
                 bannerImage = doc.getString("bannerImage") ?: "",
                 rating = doc.getDouble("rating") ?: 0.0,
-                reviewCount = doc.getLong("reviewCount")?.toInt() ?: 0
+                reviewCount = doc.getLong("reviewCount")?.toInt() ?: 0,
+                workingHours = hours ?: listOf(
+                    "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+                    "12:00", "12:30", "13:00", "16:00", "16:30", "17:00",
+                    "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
+                )
             ))
         } else Result.failure(Exception("Perfil comercial no encontrado"))
     } catch (e: Exception) { Result.failure(e) }
 
+    @Suppress("UNCHECKED_CAST")
     override suspend fun getCompaniesInCity(city: String): Result<List<CompanyProfile>> = try {
         val snapshot = db.collection("company_profiles").whereEqualTo("city", city).get().await()
         val list = snapshot.documents.map { doc ->
+            val hours = doc.get("workingHours") as? List<String>
             CompanyProfile(
                 id = doc.id,
                 name = doc.getString("name") ?: "",
@@ -64,7 +73,12 @@ class UserRepositoryImpl @Inject constructor() : UserRepository {
                 profileImage = doc.getString("profileImage") ?: "",
                 bannerImage = doc.getString("bannerImage") ?: "",
                 rating = doc.getDouble("rating") ?: 0.0,
-                reviewCount = doc.getLong("reviewCount")?.toInt() ?: 0
+                reviewCount = doc.getLong("reviewCount")?.toInt() ?: 0,
+                workingHours = hours ?: listOf(
+                    "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+                    "12:00", "12:30", "13:00", "16:00", "16:30", "17:00",
+                    "17:30", "18:00", "18:30", "19:00", "19:30", "20:00"
+                )
             )
         }
         Result.success(list)
@@ -78,7 +92,6 @@ class UserRepositoryImpl @Inject constructor() : UserRepository {
 
     override suspend fun updateCompanyProfile(data: Map<String, Any>): Result<Unit> = try {
         val userId = auth.currentUser?.uid ?: throw Exception("Sin sesión")
-        // set con merge=true crea el doc si no existe (importante para el primer setup)
         db.collection("company_profiles").document(userId).set(data, com.google.firebase.firestore.SetOptions.merge()).await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }

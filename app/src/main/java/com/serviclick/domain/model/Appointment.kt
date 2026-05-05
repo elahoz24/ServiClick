@@ -6,11 +6,12 @@ data class Appointment(
     val companyId: String = "",
     val clientName: String = "",
     val companyName: String = "",
-    val startDateMillis: Long = 0L, // Fecha de inicio del trabajo
-    val endDateMillis: Long = 0L,   // Fecha de fin (puede ser el mismo día)
-    val time: String = "",          // Tramo horario (Ej: 10:00 - 12:00)
+    val startDateMillis: Long = 0L,
+    val endDateMillis: Long = 0L,
+    val time: String = "",
     val description: String = "",
-    val status: String = "Pendiente",
+    val price: Double = 0.0, // NUEVO: Precio del servicio
+    val status: String = "Pendiente", // Pendiente, Presupuestada, Aceptada, Rechazada, Finalizada
     val ratingGiven: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
