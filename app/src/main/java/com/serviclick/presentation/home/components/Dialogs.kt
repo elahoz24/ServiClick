@@ -1,0 +1,369 @@
+package com.serviclick.presentation.home.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.serviclick.ui.theme.BeigeSurface
+import com.serviclick.ui.theme.ForestGreen
+import com.serviclick.ui.theme.SunsetOrange
+
+/**
+ * Paleta de colores unificada para todos los campos de texto de la aplicación.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun getTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = SunsetOrange, unfocusedBorderColor = ForestGreen.copy(alpha = 0.3f),
+    focusedTextColor = ForestGreen, unfocusedTextColor = ForestGreen,
+    focusedLabelColor = SunsetOrange, unfocusedLabelColor = ForestGreen.copy(alpha = 0.6f),
+    cursorColor = SunsetOrange, errorBorderColor = Color(0xFFFF5252),
+    errorLabelColor = Color(0xFFFF5252), errorSupportingTextColor = Color(0xFFFF5252)
+)
+
+/**
+ * Componente compuesto para introducir el teléfono junto a un desplegable de prefijos internacionales.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PhoneInputField(
+    prefixValue: String,
+    onPrefixChange: (String) -> Unit,
+    phoneValue: String,
+    onPhoneChange: (String) -> Unit,
+    prefixes: List<String>,
+    isError: Boolean = false,
+    supportingText: @Composable (() -> Unit)? = null
+) {
+    var expandedPrefix by remember { mutableStateOf(false) }
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+        ExposedDropdownMenuBox(
+            expanded = expandedPrefix,
+            onExpandedChange = { expandedPrefix = !expandedPrefix },
+            modifier = Modifier.weight(0.35f)
+        ) {
+            OutlinedTextField(
+                value = prefixValue.substringBefore(" "),
+                onValueChange = { },
+                readOnly = true,
+                label = { Text("Prefijo") },
+                colors = getTextFieldColors(),
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                singleLine = true,
+                supportingText = { if (isError) Text(" ") }
+            )
+            ExposedDropdownMenu(
+                expanded = expandedPrefix,
+                onDismissRequest = { expandedPrefix = false },
+                modifier = Modifier.background(BeigeSurface)
+            ) {
+                prefixes.forEach { option ->
+                    DropdownMenuItem(text = {
+                        Text(
+                            option,
+                            color = ForestGreen
+                        )
+                    }, onClick = { onPrefixChange(option); expandedPrefix = false })
+                }
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        OutlinedTextField(
+            value = phoneValue,
+            onValueChange = onPhoneChange,
+            label = { Text("Teléfono") },
+            modifier = Modifier.weight(0.65f),
+            colors = getTextFieldColors(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+            isError = isError,
+            supportingText = supportingText
+        )
+    }
+}
+
+@Composable
+fun EditNameDialog(
+    title: String,
+    initialValue: String,
+    isCompany: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var text by remember { mutableStateOf(initialValue) }
+    val isValid = text.trim().isNotEmpty()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BeigeSurface,
+        title = { Text(title, color = ForestGreen, fontWeight = FontWeight.Bold) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                colors = getTextFieldColors(),
+                isError = !isValid,
+                supportingText = { if (!isValid) Text("Este campo es obligatorio") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(text.trim()); onDismiss() },
+                enabled = isValid,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = SunsetOrange,
+                    disabledContentColor = SunsetOrange.copy(alpha = 0.4f)
+                )
+            ) {
+                Text("GUARDAR", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCELAR", color = ForestGreen.copy(0.6f)) }
+        }
+    )
+}
+
+@Composable
+fun EditPhoneDialog(
+    initialPhoneStr: String,
+    prefixes: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val parts = initialPhoneStr.split(" ")
+    var tempPrefix by remember {
+        mutableStateOf(if (parts.size > 1) prefixes.find {
+            it.startsWith(
+                parts[0]
+            )
+        } ?: prefixes[0] else prefixes[0])
+    }
+    var tempPhone by remember { mutableStateOf(if (parts.size > 1) parts.last() else "") }
+
+    val isValid = tempPhone.replace(" ", "").length >= 9
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BeigeSurface,
+        title = { Text("Teléfono", color = ForestGreen, fontWeight = FontWeight.Bold) },
+        text = {
+            PhoneInputField(
+                prefixValue = tempPrefix,
+                onPrefixChange = { tempPrefix = it },
+                phoneValue = tempPhone,
+                onPhoneChange = { tempPhone = it },
+                prefixes = prefixes,
+                isError = !isValid,
+                supportingText = { if (!isValid) Text("Mínimo 9 dígitos") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave("${tempPrefix.substringBefore(" ")} ${tempPhone.trim()}"); onDismiss() },
+                enabled = isValid,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = SunsetOrange,
+                    disabledContentColor = SunsetOrange.copy(alpha = 0.4f)
+                )
+            ) {
+                Text("GUARDAR", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCELAR", color = ForestGreen.copy(0.6f)) }
+        }
+    )
+}
+
+@Composable
+fun EditAddressDialog(initialValue: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(initialValue) }
+    val isValid = text.trim().isNotEmpty()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BeigeSurface,
+        title = { Text("Dirección", color = ForestGreen, fontWeight = FontWeight.Bold) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.fillMaxWidth(),
+                colors = getTextFieldColors(),
+                isError = !isValid,
+                supportingText = { if (!isValid) Text("La dirección es obligatoria") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(text.trim()); onDismiss() },
+                enabled = isValid,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = SunsetOrange,
+                    disabledContentColor = SunsetOrange.copy(alpha = 0.4f)
+                )
+            ) {
+                Text("GUARDAR", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCELAR", color = ForestGreen.copy(0.6f)) }
+        }
+    )
+}
+
+@Composable
+fun EditDescriptionDialog(initialValue: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(initialValue) }
+    val isValid = text.trim().isNotEmpty()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BeigeSurface,
+        title = { Text("Descripción", color = ForestGreen, fontWeight = FontWeight.Bold) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { if (it.length <= 300) text = it },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 4,
+                maxLines = 5,
+                colors = getTextFieldColors(),
+                isError = !isValid,
+                supportingText = { if (!isValid) Text("Escribe una breve descripción") }
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(text.trim()); onDismiss() },
+                enabled = isValid,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = SunsetOrange,
+                    disabledContentColor = SunsetOrange.copy(alpha = 0.4f)
+                )
+            ) {
+                Text("GUARDAR", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCELAR", color = ForestGreen.copy(0.6f)) }
+        }
+    )
+}
+
+/**
+ * Diálogo avanzado para la selección de horarios laborales de la empresa.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun EditHoursDialog(
+    currentHours: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (List<String>) -> Unit
+) {
+    // Generador automático de horas cada 15 minutos (de 08:00 a 20:45 + 21:00)
+    val allPossibleSlots = remember {
+        val slots = mutableListOf<String>()
+        for (hour in 8..20) {
+            listOf("00", "15", "30", "45").forEach { minute ->
+                slots.add("${hour.toString().padStart(2, '0')}:$minute")
+            }
+        }
+        slots.add("21:00")
+        slots
+    }
+
+    var tempSelectedHours by remember { mutableStateOf(currentHours) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = BeigeSurface,
+        title = { Text("Configurar Horario", color = ForestGreen, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Selecciona los tramos (15 min) en los que estás disponible para recibir citas:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ForestGreen.copy(0.7f)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Contenedor que restringe la altura y permite el Scroll para no ocultar los botones de acción
+                Box(modifier = Modifier.fillMaxHeight(0.6f)) {
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        allPossibleSlots.forEach { slot ->
+                            val isSelected = slot in tempSelectedHours
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    tempSelectedHours = if (isSelected) {
+                                        tempSelectedHours - slot
+                                    } else {
+                                        (tempSelectedHours + slot).sorted()
+                                    }
+                                },
+                                label = { Text(slot) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = SunsetOrange,
+                                    selectedLabelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(tempSelectedHours); onDismiss() }) {
+                Text("GUARDAR", color = SunsetOrange, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("CANCELAR", color = ForestGreen.copy(0.6f)) }
+        }
+    )
+}

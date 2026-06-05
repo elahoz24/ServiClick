@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "721123903226",
+    "project_id": "serviclick-71c4b",
+    "storage_bucket": "serviclick-71c4b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:721123903226:android:8063a5361cde2e4f8dab43",
+        "android_client_info": {
+          "package_name": "com.serviclick"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF2O9IF1foqh8b2kzsEJags_c5V9n4HGQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
